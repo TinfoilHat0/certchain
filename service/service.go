@@ -6,17 +6,14 @@ runs on the node.
 */
 
 import (
-	"time"
-
-	"github.com/dedis/cothority_template/protocol"
+	"github.com/dedis/cothority/skipchain"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
-	"gopkg.in/dedis/onet.v1/network"
 )
 
 // Name is the name to refer to the Template service from another
 // package.
-const Name = "Template"
+const Name = "CertChain"
 
 func init() {
 	onet.RegisterNewService(Name, newService)
@@ -33,37 +30,30 @@ type Service struct {
 }
 
 // ClockRequest starts a template-protocol and returns the run-time.
-func (s *Service) ClockRequest(req *ClockRequest) (network.Message, onet.ClientError) {
-	s.Count++
-	tree := req.Roster.GenerateBinaryTree()
-	pi, err := s.CreateProtocol(template.Name, tree)
+func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainResponse, onet.ClientError) {
+	log.Print("create skipchain")
+	client := skipchain.NewClient()
+	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyCert}, nil, nil)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
-	start := time.Now()
-	pi.Start()
-	resp := &ClockResponse{
-		Children: <-pi.(*template.ProtocolTemplate).ChildCount,
-	}
-	resp.Time = time.Now().Sub(start).Seconds()
-	return resp, nil
+	return &CreateSkipchainResponse{sb}, nil
 }
 
 // CountRequest returns the number of instantiations of the protocol.
-func (s *Service) CountRequest(req *CountRequest) (network.Message, onet.ClientError) {
-	return &CountResponse{s.Count}, nil
+func (s *Service) AddMerkleTreeRoot(mtr *AddMerkleTreeRootRequest) (*AddMerkleTreeRootResponse, onet.ClientError) {
+	log.Print("create mtr")
+	client := skipchain.NewClient()
+	sb, err := client.StoreSkipBlock(mtr.SkipBlock, nil, mtr.TreeRoot)
+	if err != nil {
+		return nil, err
+	}
+	return &AddMerkleTreeRootResponse{sb.Latest}, nil
 }
 
-// NewProtocol is called on all nodes of a Tree (except the root, since it is
-// the one starting the protocol) so it's the Service that will be called to
-// generate the PI on all others node.
-// If you use CreateProtocolOnet, this will not be called, as the Onet will
-// instantiate the protocol on its own. If you need more control at the
-// instantiation of the protocol, use CreateProtocolService, and you can
-// give some extra-configuration to your protocol in here.
-func (s *Service) NewProtocol(tn *onet.TreeNodeInstance, conf *onet.GenericConfig) (onet.ProtocolInstance, error) {
-	log.Lvl3("Not templated yet")
-	return nil, nil
+func (s *Service) verifyCert(newID []byte, newSB *skipchain.SkipBlock) bool {
+	log.Print(s.ServerIdentity())
+	return true
 }
 
 // newTemplate receives the context and a path where it can write its
@@ -73,8 +63,10 @@ func newService(c *onet.Context) onet.Service {
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
-	if err := s.RegisterHandlers(s.ClockRequest, s.CountRequest); err != nil {
+	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddMerkleTreeRoot); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
+	// call s.verifyCert when called
+	log.ErrFatal(skipchain.RegisterVerification(c, VerifyCert, s.verifyCert))
 	return s
 }

@@ -5,6 +5,8 @@ This holds the messages used to communicate with the service over the network.
 */
 
 import (
+	"github.com/dedis/cothority/skipchain"
+	"github.com/satori/go.uuid"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
@@ -12,30 +14,35 @@ import (
 // We need to register all messages so the network knows how to handle them.
 func init() {
 	for _, msg := range []interface{}{
-		CountRequest{}, CountResponse{},
-		ClockRequest{}, ClockResponse{},
+		CreateSkipchainRequest{},
+		MerkleTreeRoot{},
+		AddMerkleTreeRootRequest{},
 	} {
 		network.RegisterMessage(msg)
 	}
 }
 
-// ClockRequest will run the tepmlate-protocol on the roster and return
+// VerifyCert id for the verification function
+var VerifyCert = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
+
+// CreateSkipchain will run the tepmlate-protocol on the roster and return
 // the time spent doing so.
-type ClockRequest struct {
+type CreateSkipchainRequest struct {
 	Roster *onet.Roster
 }
 
-// ClockResponse returns the time spent for the protocol-run.
-type ClockResponse struct {
-	Time     float64
-	Children int
+type CreateSkipchainResponse struct {
+	SkipBlock *skipchain.SkipBlock
 }
 
-// CountRequest will return how many times the protocol has been run.
-type CountRequest struct {
+type MerkleTreeRoot struct {
 }
 
-// CountResponse returns the number of protocol-runs
-type CountResponse struct {
-	Count int
+type AddMerkleTreeRootRequest struct {
+	SkipBlock *skipchain.SkipBlock
+	TreeRoot  *MerkleTreeRoot
+}
+
+type AddMerkleTreeRootResponse struct {
+	SkipBlock *skipchain.SkipBlock
 }

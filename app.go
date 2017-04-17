@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/dedis/onet.v1/app"
 
-	"github.com/dedis/cothority_template/service"
+	"github.com/TinfoilHat0/certchain/service"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/urfave/cli.v1"
 )

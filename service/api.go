@@ -9,9 +9,9 @@ This part of the service runs on the client or the app.
 */
 
 import (
+	"github.com/dedis/cothority/skipchain"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
-	"gopkg.in/dedis/onet.v1/network"
 )
 
 // Client is a structure to communicate with the CoSi
@@ -25,25 +25,27 @@ func NewClient() *Client {
 	return &Client{Client: onet.NewClient(Name)}
 }
 
-// Clock will return the time in seconds it took to run the protocol.
-func (c *Client) Clock(r *onet.Roster) (*ClockResponse, onet.ClientError) {
+// CreateSkipchain .. can also return hash(kp of our blockhain)
+// client connects, issues this, gets the hash of the skipchain to find the skipblock
+func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := r.RandomServerIdentity()
-	log.Lvl4("Sending message to", dst)
-	reply := &ClockResponse{}
-	err := c.SendProtobuf(dst, &ClockRequest{r}, reply)
+	log.LLvl4("Sending message to", dst)
+	reply := &CreateSkipchainResponse{}
+	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r}, reply) //websocket
 	if err != nil {
 		return nil, err
 	}
-	return reply, nil
+	return reply.SkıpBlock, nil
 }
 
-// Count will return the number of times `Clock` has been called on this
-// service-node.
-func (c *Client) Count(si *network.ServerIdentity) (int, error) {
-	reply := &CountResponse{}
-	err := c.SendProtobuf(si, &CountRequest{}, reply)
+// AddMerkleTreeRoot blabla
+func (c *Client) AddMerkleTreeRoot(sb *skipchain.SkipBlock, mtr *MerkleTreeRoot) (*skipchain.SkipBlock, onet.ClientError) {
+	dst := sb.Roster.RandomServerIdentity()
+	log.Lvl4("Sending message to", dst)
+	reply := &AddMerkleTreeRootResponse{}
+	err := c.SendProtobuf(dst, &AddMerkleTreeRootRequest{sb, mtr}, reply)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	return reply.Count, nil
+	return reply.SkipBlock, nil
 }
