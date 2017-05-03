@@ -25,35 +25,37 @@ type Service struct {
 	// are correctly handled.
 	*onet.ServiceProcessor
 	path string
-	// Count holds the number of calls to 'ClockRequest'
-	Count int
 }
 
-// ClockRequest starts a template-protocol and returns the run-time.
+//CreateSkipchain creates a new skipchain
 func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainResponse, onet.ClientError) {
-	log.Print("create skipchain")
 	client := skipchain.NewClient()
-	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyCert}, nil, nil)
+	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, nil, nil) //create genesis&store skip block calls the verification function
 	if err != nil {
 		return nil, err
 	}
+	//log.Print(sb)
 	return &CreateSkipchainResponse{sb}, nil
 }
 
-// CountRequest returns the number of instantiations of the protocol.
+//AddMerkleTreeRoot stores a merkle tree root in the blockhain
 func (s *Service) AddMerkleTreeRoot(mtr *AddMerkleTreeRootRequest) (*AddMerkleTreeRootResponse, onet.ClientError) {
-	log.Print("create mtr")
+	//Call VerifyMerkleTreeRoot here, add to SkipChain only if it returns true
 	client := skipchain.NewClient()
-	sb, err := client.StoreSkipBlock(mtr.SkipBlock, nil, mtr.TreeRoot)
+	sb, err := client.StoreSkipBlock(mtr.SkipBlock, nil, mtr.TreeRoot) //nil will be replaced by storeskipblock dat
 	if err != nil {
 		return nil, err
 	}
 	return &AddMerkleTreeRootResponse{sb.Latest}, nil
 }
 
-func (s *Service) verifyCert(newID []byte, newSB *skipchain.SkipBlock) bool {
-	log.Print(s.ServerIdentity())
-	return true
+//VerifyMerkleTreeRoot verifies a signed Merkle tree root
+func (s *Service) VerifyMerkleTreeRoot(newID []byte, newSB *skipchain.SkipBlock) bool {
+	//Input: Signed Merkle tree root from the client and its K_p
+	//Run verification algorithm here, depending on it ret true or false
+	log.Print("Verify is called!")
+	//log.Print(s.ServerIdentity())
+	return false
 }
 
 // newTemplate receives the context and a path where it can write its
@@ -67,6 +69,6 @@ func newService(c *onet.Context) onet.Service {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
 	// call s.verifyCert when called
-	log.ErrFatal(skipchain.RegisterVerification(c, VerifyCert, s.verifyCert))
+	log.ErrFatal(skipchain.RegisterVerification(c, VerifyMerkleTreeRoot, s.VerifyMerkleTreeRoot))
 	return s
 }

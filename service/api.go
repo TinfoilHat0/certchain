@@ -29,19 +29,23 @@ func NewClient() *Client {
 // client connects, issues this, gets the hash of the skipchain to find the skipblock
 func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := r.RandomServerIdentity()
-	log.LLvl4("Sending message to", dst)
+	log.Lvl4("Sending message to", dst)
 	reply := &CreateSkipchainResponse{}
 	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r}, reply) //websocket
 	if err != nil {
 		return nil, err
 	}
-	return reply.SkıpBlock, nil
+	return reply.SkipBlock, nil
 }
 
-// AddMerkleTreeRoot blabla
+// AddMerkleTreeRoot builds a merkle tree of certificates, signs it and sends the root to the certchain for verification
 func (c *Client) AddMerkleTreeRoot(sb *skipchain.SkipBlock, mtr *MerkleTreeRoot) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := sb.Roster.RandomServerIdentity()
+	//Build the merkle tree root here, sign in with K_s and creates a transaction
+	//A transaction must contain the following: Previous signed tree root, current signed tree root, public key to verify the sign
+	//We must have a signing algorithm in cothority, how to use it properly ? Also, where's the secret/public key of client
 	log.Lvl4("Sending message to", dst)
+	//Reply should come from the Skipchain, either true or false
 	reply := &AddMerkleTreeRootResponse{}
 	err := c.SendProtobuf(dst, &AddMerkleTreeRootRequest{sb, mtr}, reply)
 	if err != nil {

@@ -17,32 +17,42 @@ func init() {
 		CreateSkipchainRequest{},
 		MerkleTreeRoot{},
 		AddMerkleTreeRootRequest{},
+		SkipBlockData{},
 	} {
 		network.RegisterMessage(msg)
 	}
 }
 
-// VerifyCert id for the verification function
-var VerifyCert = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
+// VerifyMerkleTreeRoot is the ID of the verifier for the Certchain service
+var VerifyMerkleTreeRoot = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
 
-// CreateSkipchain will run the tepmlate-protocol on the roster and return
-// the time spent doing so.
+//CreateSkipchainRequest ...
 type CreateSkipchainRequest struct {
 	Roster *onet.Roster
 }
 
+//CreateSkipchainResponse returns a block from the underlying Skipchain service
 type CreateSkipchainResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
+//MerkleTreeRoot ..
 type MerkleTreeRoot struct {
 }
 
+//AddMerkleTreeRootRequest ..
 type AddMerkleTreeRootRequest struct {
 	SkipBlock *skipchain.SkipBlock
 	TreeRoot  *MerkleTreeRoot
+	//Should previous Merkle Tree root be added here along with secret/public keys of the client ?
 }
 
+//AddMerkleTreeRootResponse ..
 type AddMerkleTreeRootResponse struct {
 	SkipBlock *skipchain.SkipBlock
+}
+
+//SkipBlockData ..
+type SkipBlockData struct {
+	//What I want in my transaction goes here
 }
