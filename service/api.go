@@ -10,6 +10,7 @@ This part of the service runs on the client or the app.
 
 import (
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/crypto/random"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )
@@ -38,16 +39,19 @@ func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.Cli
 	return reply.SkipBlock, nil
 }
 
-// AddMerkleTreeRoot builds a merkle tree of certificates, signs it and sends the root to the certchain for verification
-func (c *Client) AddMerkleTreeRoot(sb *skipchain.SkipBlock, mtr *MerkleTreeRoot) (*skipchain.SkipBlock, onet.ClientError) {
+//CreateNewCertBlock builds a new CertBlock from the supplied parameters
+func (c *Client) CreateNewCertBlock(prevMTR *MerkleTreeRoot, newCerts []byte) (*CertBlock, onet.ClientError) {
+	//TODO: Build a new MT using newCerts, merge with prevMTR and sign the new root with the public key of the client.
+	newSignedRoot := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
+	return &CertBlock{prevMTR, newSignedRoot, nil, false}, nil
+}
+
+//AddNewTransaction adds a new transaction to the underlying Skipchain service
+func (c *Client) AddNewTransaction(sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := sb.Roster.RandomServerIdentity()
-	//Build the merkle tree root here, sign in with K_s and creates a transaction
-	//A transaction must contain the following: Previous signed tree root, current signed tree root, public key to verify the sign
-	//We must have a signing algorithm in cothority, how to use it properly ? Also, where's the secret/public key of client
-	log.Lvl4("Sending message to", dst)
 	//Reply should come from the Skipchain, either true or false
-	reply := &AddMerkleTreeRootResponse{}
-	err := c.SendProtobuf(dst, &AddMerkleTreeRootRequest{sb, mtr}, reply)
+	reply := &AddNewTransactionResponse{}
+	err := c.SendProtobuf(dst, &AddNewTransactionRequest{sb, cb}, reply)
 	if err != nil {
 		return nil, err
 	}

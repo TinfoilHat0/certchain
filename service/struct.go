@@ -6,6 +6,7 @@ This holds the messages used to communicate with the service over the network.
 
 import (
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/crypto/abstract"
 	"github.com/satori/go.uuid"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -15,9 +16,9 @@ import (
 func init() {
 	for _, msg := range []interface{}{
 		CreateSkipchainRequest{},
+		AddNewTransactionRequest{},
 		MerkleTreeRoot{},
-		AddMerkleTreeRootRequest{},
-		SkipBlockData{},
+		CertBlock{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -36,23 +37,26 @@ type CreateSkipchainResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//MerkleTreeRoot ..
+//AddNewTransactionRequest is the structure for a new transaction request
+type AddNewTransactionRequest struct {
+	SkipBlock *skipchain.SkipBlock //what would that contain?
+	CertBlock *CertBlock
+}
+
+//AddNewTransactionResponse is the structure for a transaction response
+type AddNewTransactionResponse struct {
+	SkipBlock *skipchain.SkipBlock
+}
+
+//MerkleTreeRoot is a wrapper for the signed MTR
 type MerkleTreeRoot struct {
+	SignedRoot []byte
 }
 
-//AddMerkleTreeRootRequest ..
-type AddMerkleTreeRootRequest struct {
-	SkipBlock *skipchain.SkipBlock
-	TreeRoot  *MerkleTreeRoot
-	//Should previous Merkle Tree root be added here along with secret/public keys of the client ?
-}
-
-//AddMerkleTreeRootResponse ..
-type AddMerkleTreeRootResponse struct {
-	SkipBlock *skipchain.SkipBlock
-}
-
-//SkipBlockData ..
-type SkipBlockData struct {
-	//What I want in my transaction goes here
+//CertBlock stores a transaction of the Certchain
+type CertBlock struct {
+	PrevMTR   *MerkleTreeRoot
+	CurrMTR   *MerkleTreeRoot
+	PublicKey []abstract.Point //is this the correct type for a key?
+	spent     bool             //Indicates whether PrevMTR has been spent or not
 }

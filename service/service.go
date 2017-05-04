@@ -7,8 +7,9 @@ runs on the node.
 
 import (
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/crypto/random"
+	"github.com/dedis/onet/log"
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/log"
 )
 
 // Name is the name to refer to the Template service from another
@@ -30,45 +31,47 @@ type Service struct {
 //CreateSkipchain creates a new skipchain
 func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainResponse, onet.ClientError) {
 	client := skipchain.NewClient()
-	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, nil, nil) //create genesis&store skip block calls the verification function
+	//publicKey := cs.Roster.Publics gives error
+	prevMTR := &MerkleTreeRoot{make([]byte, 4)} //for the very first transaction, prevMTR is just a slice of 0 bytes
+	curMTR := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
+	genesisTxn := &CertBlock{prevMTR, curMTR, nil, false}                                                           //how to access the public key of the service?
+	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, genesisTxn, nil) //create genesis&store skip block calls the verification function
 	if err != nil {
 		return nil, err
 	}
-	//log.Print(sb)
-	return &CreateSkipchainResponse{sb}, nil
+	//log.Print(network.Unmarshal(sb.Data))
+	return &CreateSkipchainResponse{sb}, nil //What does sb.Data contain at this point? Marshalled genesisTxn ?
 }
 
-//AddMerkleTreeRoot stores a merkle tree root in the blockhain
-func (s *Service) AddMerkleTreeRoot(mtr *AddMerkleTreeRootRequest) (*AddMerkleTreeRootResponse, onet.ClientError) {
-	//Call VerifyMerkleTreeRoot here, add to SkipChain only if it returns true
+//AddNewTransaction stores a new transaction in the underlying Skipchain
+func (s *Service) AddNewTransaction(txnRequest *AddNewTransactionRequest) (*AddNewTransactionResponse, onet.ClientError) {
 	client := skipchain.NewClient()
-	sb, err := client.StoreSkipBlock(mtr.SkipBlock, nil, mtr.TreeRoot) //nil will be replaced by storeskipblock dat
+	//StoreSkipBlock already calls its verifier function
+	sb, err := client.StoreSkipBlock(txnRequest.SkipBlock, nil, txnRequest.CertBlock.CurrMTR) //No idea how this should be called.
 	if err != nil {
 		return nil, err
 	}
-	return &AddMerkleTreeRootResponse{sb.Latest}, nil
+	return &AddNewTransactionResponse{sb.Latest}, nil
 }
 
 //VerifyMerkleTreeRoot verifies a signed Merkle tree root
 func (s *Service) VerifyMerkleTreeRoot(newID []byte, newSB *skipchain.SkipBlock) bool {
-	//Input: Signed Merkle tree root from the client and its K_p
+	//What does newID contain? How can I access the tree roots inside this function ?
 	//Run verification algorithm here, depending on it ret true or false
 	log.Print("Verify is called!")
-	//log.Print(s.ServerIdentity())
-	return false
+	return true
 }
 
-// newTemplate receives the context and a path where it can write its
+// newService receives the context and a path where it can write its
 // configuration, if desired. As we don't know when the service will exit,
 // we need to save the configuration on our own from time to time.
 func newService(c *onet.Context) onet.Service {
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
-	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddMerkleTreeRoot); err != nil {
+	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddNewTransaction); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
-	// call s.verifyCert when called
 	log.ErrFatal(skipchain.RegisterVerification(c, VerifyMerkleTreeRoot, s.VerifyMerkleTreeRoot))
 	return s
 }
