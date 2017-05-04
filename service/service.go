@@ -31,23 +31,22 @@ type Service struct {
 //CreateSkipchain creates a new skipchain
 func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainResponse, onet.ClientError) {
 	client := skipchain.NewClient()
-	//publicKey := cs.Roster.Publics gives error
-	prevMTR := &MerkleTreeRoot{make([]byte, 4)} //for the very first transaction, prevMTR is just a slice of 0 bytes
-	curMTR := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
-	genesisTxn := &CertBlock{prevMTR, curMTR, nil, false}                                                           //how to access the public key of the service?
-	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, genesisTxn, nil) //create genesis&store skip block calls the verification function
+	prevMTR := &MerkleTreeRoot{make([]byte, 5)}
+	latestMTR := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
+	genesisData := &CertBlock{prevMTR, latestMTR, cs.PublicKey}                                                      //how to access the public key of the service?
+	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, genesisData, nil) //create genesis&store skip block calls the verification function
 	if err != nil {
 		return nil, err
 	}
-	//log.Print(network.Unmarshal(sb.Data))
-	return &CreateSkipchainResponse{sb}, nil //What does sb.Data contain at this point? Marshalled genesisTxn ?
+	//My data is marshalled and stored in sb.Data ? If so, how to unmarshall it outside
+	return &CreateSkipchainResponse{sb}, nil
 }
 
 //AddNewTransaction stores a new transaction in the underlying Skipchain
 func (s *Service) AddNewTransaction(txnRequest *AddNewTransactionRequest) (*AddNewTransactionResponse, onet.ClientError) {
 	client := skipchain.NewClient()
 	//StoreSkipBlock already calls its verifier function
-	sb, err := client.StoreSkipBlock(txnRequest.SkipBlock, nil, txnRequest.CertBlock.CurrMTR) //No idea how this should be called.
+	sb, err := client.StoreSkipBlock(txnRequest.SkipBlock, nil, txnRequest.CertBlock) //Is this the proper way to call that ?
 	if err != nil {
 		return nil, err
 	}
