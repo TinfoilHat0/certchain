@@ -33,12 +33,12 @@ func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainR
 	client := skipchain.NewClient()
 	prevMTR := &MerkleTreeRoot{make([]byte, 5)}
 	latestMTR := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
-	genesisData := &CertBlock{prevMTR, latestMTR, cs.PublicKey}                                                      //how to access the public key of the service?
+	genesisData := &CertBlock{prevMTR, latestMTR, cs.PublicKey}
 	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, genesisData, nil) //create genesis&store skip block calls the verification function
 	if err != nil {
 		return nil, err
 	}
-	//My data is marshalled and stored in sb.Data ? If so, how to unmarshall it outside
+	//My data is marshalled and stored in sb.Data ? If so, how to unmarshall it outside ?
 	return &CreateSkipchainResponse{sb}, nil
 }
 

@@ -38,9 +38,9 @@ func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.Cli
 	dst := r.RandomServerIdentity()
 	log.Lvl4("Sending message to", dst)
 	reply := &CreateSkipchainResponse{}
-	key := &Key{c.keypair.Public, c.keypair.Suite}
+	key := &Key{c.keypair.Public, c.keypair.Suite} //putting c.keypair.Public gives an error (no constructor for abstract.point)
 	log.Print(key)
-	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, nil}, reply) //putting the key here gives error
+	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, key}, reply) //putting the key here gives error
 	if err != nil {
 		return nil, err
 	}
