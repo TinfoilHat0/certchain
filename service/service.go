@@ -7,7 +7,7 @@ runs on the node.
 
 import (
 	"github.com/dedis/cothority/skipchain"
-	"gopkg.in/dedis/crypto.v0/random"
+	"github.com/dedis/crypto/random"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )

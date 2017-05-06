@@ -41,7 +41,7 @@ type CreateSkipchainResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//AddNewTxnRequest is the structure for a new transaction request
+//AddNewTxnRequest is the structure for a transaction request
 type AddNewTxnRequest struct {
 	SkipBlock *skipchain.SkipBlock
 	CertBlock *CertBlock
@@ -52,12 +52,12 @@ type AddNewTxnResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//MerkleTreeRoot is a wrapper for the signed MTR
+//MerkleTreeRoot is a wrapper for a Merkle Tree Root which is just a slice of bytes
 type MerkleTreeRoot struct {
 	MTRoot []byte
 }
 
-//Key is a wrapper structure for the key used in Schnorr Signature
+//Key is a wrapper for the key used in Schnorr Signature
 type Key struct {
 	PublicKey abstract.Point
 	suite     abstract.Suite

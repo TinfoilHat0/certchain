@@ -9,11 +9,13 @@ This part of the service runs on the client or the app.
 */
 
 import (
+	"crypto/sha256"
+
 	"github.com/dedis/cothority/skipchain"
 	"github.com/dedis/crypto/config"
 	"github.com/dedis/crypto/ed25519"
-	"github.com/dedis/crypto/random"
 	"github.com/dedis/crypto/sign"
+	"github.com/dedis/onet/crypto"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )
@@ -45,19 +47,18 @@ func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.Cli
 	return reply.SkipBlock, nil
 }
 
-//CreateNewCertBlock builds a new CertBlock from the supplied parameters
-func (c *Client) CreateNewCertBlock(prevMTR *MerkleTreeRoot, newCerts []byte) *CertBlock {
-	//TODO: Build a new MT using newCerts, merge with prevMTR and sign the new root with the public key of the client.
-	newMTR := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
-	signedMTR, err := sign.Schnorr(c.keypair.Suite, c.keypair.Secret, newMTR.MTRoot)
+//CreateNewCertBlock generates a signed MTR from certifs and wraps the parameters in a CertBlock
+func (c *Client) CreateNewCertBlock(prevMTR *MerkleTreeRoot, certifs []crypto.HashID) *CertBlock {
+	root, _ := crypto.ProofTree(sha256.New, certifs) //Why can't I just use a [][]byte ?
+	signedMTR, err := sign.Schnorr(c.keypair.Suite, c.keypair.Secret, root)
 	if err != nil {
 		return nil
 	}
 	return &CertBlock{prevMTR, &MerkleTreeRoot{signedMTR}, &Key{c.keypair.Public, c.keypair.Suite}}
 }
 
-//AddNewTransaction adds a new transaction to the underlying Skipchain service
-func (c *Client) AddNewTransaction(sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
+//AddNewTxn adds a new transaction to the underlying Skipchain service
+func (c *Client) AddNewTxn(sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := sb.Roster.RandomServerIdentity()
 	reply := &AddNewTxnResponse{}
 	err := c.SendProtobuf(dst, &AddNewTxnRequest{sb, cb}, reply)
