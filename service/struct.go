@@ -6,8 +6,8 @@ This holds the messages used to communicate with the service over the network.
 
 import (
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/crypto/abstract"
 	"github.com/satori/go.uuid"
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
@@ -15,11 +15,13 @@ import (
 // We need to register all messages so the network knows how to handle them.
 func init() {
 	for _, msg := range []interface{}{
-		CreateSkipchainRequest{}, //What to put , what not to put
-		AddNewTransactionRequest{},
-		MerkleTreeRoot{},
-		CertBlock{},
-		Key{},
+		&CreateSkipchainRequest{}, //What to put , what not to put ? (Things that will be marshalled ?)
+		&CreateSkipchainResponse{},
+		&AddNewTxnRequest{},
+		&AddNewTxnResponse{},
+		&MerkleTreeRoot{},
+		&Key{},
+		&CertBlock{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -39,14 +41,14 @@ type CreateSkipchainResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//AddNewTransactionRequest is the structure for a new transaction request
-type AddNewTransactionRequest struct {
+//AddNewTxnRequest is the structure for a new transaction request
+type AddNewTxnRequest struct {
 	SkipBlock *skipchain.SkipBlock
 	CertBlock *CertBlock
 }
 
-//AddNewTransactionResponse is the structure for a transaction response
-type AddNewTransactionResponse struct {
+//AddNewTxnResponse is the structure for a transaction response
+type AddNewTxnResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
@@ -55,15 +57,15 @@ type MerkleTreeRoot struct {
 	MTRoot []byte
 }
 
+//Key is a wrapper structure for the key used in Schnorr Signature
+type Key struct {
+	PublicKey abstract.Point
+	suite     abstract.Suite
+}
+
 //CertBlock stores a transaction of the Certchain(this is stored as Data in Skipchain)
 type CertBlock struct {
 	PrevMTR   *MerkleTreeRoot
 	LatestMTR *MerkleTreeRoot
 	PublicKey *Key
-}
-
-//Key is a wrapper structure for the key used in Schnorr Signature
-type Key struct {
-	PublicKey abstract.Point
-	suite     abstract.Suite
 }

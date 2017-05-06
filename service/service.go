@@ -7,9 +7,9 @@ runs on the node.
 
 import (
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/crypto/random"
-	"github.com/dedis/onet/log"
+	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/log"
 )
 
 // Name is the name to refer to the Template service from another
@@ -38,19 +38,17 @@ func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainR
 	if err != nil {
 		return nil, err
 	}
-	//My data is marshalled and stored in sb.Data ? If so, how to unmarshall it outside ?
 	return &CreateSkipchainResponse{sb}, nil
 }
 
-//AddNewTransaction stores a new transaction in the underlying Skipchain
-func (s *Service) AddNewTransaction(txnRequest *AddNewTransactionRequest) (*AddNewTransactionResponse, onet.ClientError) {
+//AddNewTxn stores a new transaction in the underlying Skipchain
+func (s *Service) AddNewTxn(txnRequest *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) {
 	client := skipchain.NewClient()
-	//StoreSkipBlock already calls its verifier function
 	sb, err := client.StoreSkipBlock(txnRequest.SkipBlock, nil, txnRequest.CertBlock) //Is this the proper way to call that ?
 	if err != nil {
 		return nil, err
 	}
-	return &AddNewTransactionResponse{sb.Latest}, nil
+	return &AddNewTxnResponse{sb.Latest}, nil
 }
 
 //VerifyMerkleTreeRoot verifies a signed Merkle tree root
@@ -68,7 +66,7 @@ func newService(c *onet.Context) onet.Service {
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
-	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddNewTransaction); err != nil {
+	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddNewTxn); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
 	log.ErrFatal(skipchain.RegisterVerification(c, VerifyMerkleTreeRoot, s.VerifyMerkleTreeRoot))

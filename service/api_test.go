@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )
@@ -27,13 +26,14 @@ func TestServiceTemplate(t *testing.T) {
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
 
-	cb := client.CreateNewCertBlock(nil, nil)
-	assert.NotNil(t, cb)
-
 	/*
-		sb, err = client.AddNewTransaction(sb, cb)
-		log.ErrFatal(err, "Couldn't send")
-		assert.NotNil(t, sb)
+		cb := client.CreateNewCertBlock(nil, nil)
+		assert.NotNil(t, cb)
+
+		/*
+			sb, err = client.AddNewTransaction(sb, cb)
+			log.ErrFatal(err, "Couldn't send")
+			assert.NotNil(t, sb)
 	*/
 
 }

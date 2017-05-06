@@ -32,15 +32,13 @@ func NewClient() *Client {
 	return &Client{onet.NewClient(Name), kp} //by reference or by value?
 }
 
-// CreateSkipchain .. can also return hash(kp of our blockhain)
-// client connects, issues this, gets the hash of the skipchain to find the skipblock
+// CreateSkipchain initializes the skipchain which is the underlying blockchain
 func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := r.RandomServerIdentity()
 	log.Lvl4("Sending message to", dst)
 	reply := &CreateSkipchainResponse{}
-	key := &Key{c.keypair.Public, c.keypair.Suite} //putting c.keypair.Public gives an error (no constructor for abstract.point)
-	log.Print(key)
-	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, key}, reply) //putting the key here gives error
+	key := &Key{c.keypair.Public, c.keypair.Suite}
+	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, key}, reply)
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +53,14 @@ func (c *Client) CreateNewCertBlock(prevMTR *MerkleTreeRoot, newCerts []byte) *C
 	if err != nil {
 		return nil
 	}
-	return &CertBlock{prevMTR, &MerkleTreeRoot{signedMTR}, &Key{c.keypair.Public, c.keypair.Suite}} //better way of passing the public key?
+	return &CertBlock{prevMTR, &MerkleTreeRoot{signedMTR}, &Key{c.keypair.Public, c.keypair.Suite}}
 }
 
 //AddNewTransaction adds a new transaction to the underlying Skipchain service
 func (c *Client) AddNewTransaction(sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := sb.Roster.RandomServerIdentity()
-	reply := &AddNewTransactionResponse{}
-	err := c.SendProtobuf(dst, &AddNewTransactionRequest{sb, cb}, reply)
+	reply := &AddNewTxnResponse{}
+	err := c.SendProtobuf(dst, &AddNewTxnRequest{sb, cb}, reply)
 	if err != nil {
 		return nil, err
 	}
