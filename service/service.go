@@ -33,17 +33,16 @@ type Service struct {
 //CreateSkipchain creates a new skipchain
 func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainResponse, onet.ClientError) {
 	client := skipchain.NewClient()
-	log.Print("From service")
 	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyTxn}, cs.CertBlock, nil)
 	if err != nil {
 		return nil, err
 	}
-	s.unspentTxns[string(cs.CertBlock.PrevSignedMTR)] = sb.Hash //add block to the map, keyed by PrevSignedMTR Q:Should I just use the hash of certblock?
+	s.unspentTxns[string(cs.CertBlock.PrevSignedMTR)] = sb.Hash
 	return &CreateSkipchainResponse{sb}, nil
 }
 
 //AddNewTxn stores a new transaction in the underlying Skipchain
-func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) {
+func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) { //Where do I use roster here ?
 	client := skipchain.NewClient()                                     //Shouldn't I use a single client?
 	sb, err := client.StoreSkipBlock(txn.SkipBlock, nil, txn.CertBlock) //txn.CertBlock is passed as Data right ?
 	if err != nil {
@@ -68,7 +67,6 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	//Get the public key from the previous block
 	_, cbPrev, _ := network.Unmarshal(parentSB.Data)
 	publicKey := cbPrev.(*CertBlock).PublicKey //Verification has to be done using the public key of the previous block
-	suite := cbPrev.(*CertBlock).Suite
 
 	//Verify the signature
 	_, cb, _ := network.Unmarshal(newSB.Data)
@@ -96,6 +94,7 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 func newService(c *onet.Context) onet.Service {
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
+		unspentTxns:      make(map[string]skipchain.SkipBlockID),
 	}
 	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddNewTxn); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")

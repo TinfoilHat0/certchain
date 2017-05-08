@@ -8,8 +8,8 @@ import (
 	gohash "hash"
 	"strconv"
 
-	"github.com/dedis/crypto/abstract"
-	"github.com/dedis/onet/log"
+	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/onet.v1/log"
 )
 
 // HashFunc exports a hashfunction

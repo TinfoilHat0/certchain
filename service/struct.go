@@ -20,6 +20,7 @@ func init() {
 		&AddNewTxnRequest{},
 		&AddNewTxnResponse{},
 		&CertBlock{},
+		&Service{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -57,5 +58,4 @@ type CertBlock struct {
 	LatestSignedMTR []byte
 	LatestMTR       []byte
 	PublicKey       abstract.Point
-	Suite           abstract.Suite
 }

@@ -10,16 +10,17 @@ This part of the service runs on the client or the app.
 
 import (
 	"crypto/sha256"
-	"log"
 
-	"github.com/TinfoilHat0/certchain/merkle_tree"
+	"github.com/TinfoilHat0/certchain/merkletree"
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet/network"
 	"gopkg.in/dedis/crypto.v0/config"
-	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/sign"
 	"gopkg.in/dedis/onet.v1"
 )
+
+var suite = network.Suite
 
 // Client is a structure to communicate with the CoSi
 // service
@@ -30,14 +31,12 @@ type Client struct {
 
 // NewClient instantiates a new cosi.Client
 func NewClient() *Client {
-	suite := ed25519.NewAES128SHA256Ed25519(false)
 	kp := config.NewKeyPair(suite)
 	return &Client{onet.NewClient(Name), kp} //by reference or by value?
 }
 
 //GenerateKeyPair generetes a new keypair for the client
 func (c *Client) GenerateKeyPair() {
-	suite := ed25519.NewAES128SHA256Ed25519(false)
 	kp := config.NewKeyPair(suite)
 	c.keypair = kp
 }
@@ -61,18 +60,17 @@ func (c *Client) CreateCertBlock(prevSignedMTR []byte, certifs []crypto.HashID, 
 	leaves[0] = certRoot
 	leaves[1] = prevSignedMTR
 	certRoot, _ = crypto.ProofTree(sha256.New, leaves)
-	latestSignedMTR, err := sign.Schnorr(keyPair.Suite, keyPair.Secret, certRoot)
+	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, certRoot)
 	if err != nil {
 		return nil
 	}
-	return &CertBlock{prevSignedMTR, latestSignedMTR, certRoot, keyPair.Public, keyPair.Suite}
+	return &CertBlock{prevSignedMTR, latestSignedMTR, certRoot, keyPair.Public}
 }
 
 // CreateSkipchain initializes the Skipchain which is the underlying blockchain of the service
 func (c *Client) CreateSkipchain(r *onet.Roster, genesisCertBlock *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := r.RandomServerIdentity()
 	reply := &CreateSkipchainResponse{}
-	log.Print("From api")
 	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, genesisCertBlock}, reply)
 	if err != nil {
 		return nil, err
