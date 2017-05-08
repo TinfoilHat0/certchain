@@ -54,8 +54,8 @@ type AddNewTxnResponse struct {
 
 //CertBlock stores a transaction of the Certchain (this is stored in data field of a Skipblock)
 type CertBlock struct {
-	PrevSignedMTR   []byte
 	LatestSignedMTR []byte
 	LatestMTR       []byte
+	PrevMTR         []byte
 	PublicKey       abstract.Point
 }

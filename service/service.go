@@ -37,37 +37,37 @@ func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainR
 	if err != nil {
 		return nil, err
 	}
-	s.unspentTxns[string(cs.CertBlock.PrevSignedMTR)] = sb.Hash
+	s.unspentTxns[string(cs.CertBlock.PrevMTR)] = sb.Hash
 	return &CreateSkipchainResponse{sb}, nil
 }
 
-//AddNewTxn stores a new transaction in the underlying Skipchain
+//AddNewTxn stores a new transaction in the underlying Skipchain service
 func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) { //Where do I use roster here ?
 	client := skipchain.NewClient()                                     //Shouldn't I use a single client?
 	sb, err := client.StoreSkipBlock(txn.SkipBlock, nil, txn.CertBlock) //txn.CertBlock is passed as Data right ?
 	if err != nil {
 		return nil, err
 	}
-	s.unspentTxns[string(txn.CertBlock.PrevSignedMTR)] = sb.Latest.Hash //add block to the map, keyed by PrevSignedMTR
+	s.unspentTxns[string(txn.CertBlock.PrevMTR)] = sb.Latest.Hash //add block to the map, keyed by PrevSignedMTR
 	return &AddNewTxnResponse{sb.Latest}, nil
 }
 
-//VerifyTxn verifies a CertChain txn
-//Verification is done as follows:
+//VerifyTxn verifies a Certchain txn as follows:
 //1. Get the public key from the previous block
-//2. Verify the signature on the blocks latestMTR, if previousMTR is all 0(this is the genesis certblock) return true
-//3. Check whether the block is in unspentTxn map. If it is, remove block from the map and return true. Otherwise, returnfalse
+//2. Verify the signature on the blocks latestMTR, if previousMTR is all 0 (this is the genesis certblock) this is the only verification
+//3. Check whether the block is in unspentTxn map. If it is, remove block from the map and return true. Otherwise, return false
 func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
-	//Do I need to call verifications for skipchain block as well or is it handled by itself?
+	//1.Do I need to call verifications for skipchain block as well or is it handled by itself?
+	//What does GetSingleBlock() returns when called by the genesis block?
 	client := skipchain.NewClient()
-	parentSB, getBlockErr := client.GetSingleBlock(newSB.Roster, newSB.ParentBlockID) //Does this return genesis when called by the genesis ?
-	if getBlockErr != nil {
+	previousSB, cerr := client.GetSingleBlock(newSB.Roster, newSB.BackLinkIDs[0]) //
+	if cerr != nil {
 		return false
 	}
 	//Get the public key from the previous block
-	_, cbPrev, _ := network.Unmarshal(parentSB.Data)
+	_, cbPrev, err := network.Unmarshal(previousSB.Data)
+	log.ErrFatal(err)
 	publicKey := cbPrev.(*CertBlock).PublicKey //Verification has to be done using the public key of the previous block
-
 	//Verify the signature
 	_, cb, _ := network.Unmarshal(newSB.Data)
 	signErr := sign.VerifySchnorr(suite, publicKey, cb.(*CertBlock).LatestMTR, cb.(*CertBlock).LatestSignedMTR)
@@ -75,16 +75,16 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 		return false
 	}
 	//If block doesn't have any previous MTR, verification only consists of checking the signature
-	if bytes.Equal(cb.(*CertBlock).PrevSignedMTR, make([]byte, 32)) {
+	if bytes.Equal(cb.(*CertBlock).PrevMTR, make([]byte, 32)) {
 		return true
 	}
 	//Check if the block is unspent. If it is spent, i.e. it can't be found in the map, return false
-	if _, exists := s.unspentTxns[string(cb.(*CertBlock).PrevSignedMTR)]; !exists {
+	if _, exists := s.unspentTxns[string(cb.(*CertBlock).PrevMTR)]; !exists {
 		return false
 
 	}
 	//Spend the txn by removing it from map
-	delete(s.unspentTxns, string(cb.(*CertBlock).PrevSignedMTR))
+	delete(s.unspentTxns, string(cb.(*CertBlock).PrevMTR))
 	return true
 }
 

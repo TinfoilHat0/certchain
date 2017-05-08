@@ -13,20 +13,24 @@ import (
 
 	"github.com/TinfoilHat0/certchain/merkletree"
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/onet/network"
 	"gopkg.in/dedis/crypto.v0/config"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/sign"
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/network"
 )
 
+//Global variables
 var suite = network.Suite
+
+//32 bytes
+var hashSize = sha256.New().Size()
 
 // Client is a structure to communicate with the CoSi
 // service
 type Client struct {
 	*onet.Client
-	keypair *config.KeyPair
+	keyPair *config.KeyPair
 }
 
 // NewClient instantiates a new cosi.Client
@@ -35,39 +39,36 @@ func NewClient() *Client {
 	return &Client{onet.NewClient(Name), kp} //by reference or by value?
 }
 
-//GenerateKeyPair generetes a new keypair for the client
-func (c *Client) GenerateKeyPair() {
+//GenerateNewKeyPair generetes a new keypair for the client
+func (c *Client) GenerateNewKeyPair() {
 	kp := config.NewKeyPair(suite)
-	c.keypair = kp
+	c.keyPair = kp
 }
 
 //GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
 func (c *Client) GenerateCertificates(n int) []crypto.HashID {
-	newHash := sha256.New
-	hash := newHash()
 	leaves := make([]crypto.HashID, n)
 	for i := range leaves {
-		leaves[i] = random.Bytes(hash.Size(), random.Stream)
+		leaves[i] = random.Bytes(hashSize, random.Stream)
 	}
 	return leaves
 }
 
 //CreateCertBlock builds a new CertBlock from the supplied certificates
-func (c *Client) CreateCertBlock(prevSignedMTR []byte, certifs []crypto.HashID, keyPair *config.KeyPair) *CertBlock {
-	//Should signing done with the previous' blocks secret key?
-	certRoot, _ := crypto.ProofTree(sha256.New, certifs) //Create a MTR from the supplied certificates
+func (c *Client) CreateCertBlock(certifs []crypto.HashID, prevMTR []byte, keyPair *config.KeyPair) *CertBlock {
+	certMTR, _ := crypto.ProofTree(sha256.New, certifs) //Create a MTR from the supplied certificates
 	leaves := make([]crypto.HashID, 2)
-	leaves[0] = certRoot
-	leaves[1] = prevSignedMTR
-	certRoot, _ = crypto.ProofTree(sha256.New, leaves)
-	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, certRoot)
+	leaves[0] = prevMTR
+	leaves[1] = certMTR
+	latestMTR, _ := crypto.ProofTree(sha256.New, leaves)
+	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, latestMTR)
 	if err != nil {
 		return nil
 	}
-	return &CertBlock{prevSignedMTR, latestSignedMTR, certRoot, keyPair.Public}
+	return &CertBlock{latestSignedMTR, latestMTR, prevMTR, keyPair.Public}
 }
 
-// CreateSkipchain initializes the Skipchain which is the underlying blockchain of the service
+// CreateSkipchain initializes the Skipchain which is the underlying blockchain service
 func (c *Client) CreateSkipchain(r *onet.Roster, genesisCertBlock *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := r.RandomServerIdentity()
 	reply := &CreateSkipchainResponse{}
