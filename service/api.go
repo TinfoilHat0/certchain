@@ -10,14 +10,15 @@ This part of the service runs on the client or the app.
 
 import (
 	"crypto/sha256"
+	"log"
 
+	"github.com/TinfoilHat0/certchain/merkle_tree"
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/crypto/config"
-	"github.com/dedis/crypto/ed25519"
-	"github.com/dedis/crypto/sign"
-	"github.com/dedis/onet/crypto"
+	"gopkg.in/dedis/crypto.v0/config"
+	"gopkg.in/dedis/crypto.v0/ed25519"
+	"gopkg.in/dedis/crypto.v0/random"
+	"gopkg.in/dedis/crypto.v0/sign"
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/log"
 )
 
 // Client is a structure to communicate with the CoSi
@@ -34,34 +35,56 @@ func NewClient() *Client {
 	return &Client{onet.NewClient(Name), kp} //by reference or by value?
 }
 
-// CreateSkipchain initializes the skipchain which is the underlying blockchain
-func (c *Client) CreateSkipchain(r *onet.Roster) (*skipchain.SkipBlock, onet.ClientError) {
+//GenerateKeyPair generetes a new keypair for the client
+func (c *Client) GenerateKeyPair() {
+	suite := ed25519.NewAES128SHA256Ed25519(false)
+	kp := config.NewKeyPair(suite)
+	c.keypair = kp
+}
+
+//GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
+func (c *Client) GenerateCertificates(n int) []crypto.HashID {
+	newHash := sha256.New
+	hash := newHash()
+	leaves := make([]crypto.HashID, n)
+	for i := range leaves {
+		leaves[i] = random.Bytes(hash.Size(), random.Stream)
+	}
+	return leaves
+}
+
+//CreateCertBlock builds a new CertBlock from the supplied certificates
+func (c *Client) CreateCertBlock(prevSignedMTR []byte, certifs []crypto.HashID, keyPair *config.KeyPair) *CertBlock {
+	//Should signing done with the previous' blocks secret key?
+	certRoot, _ := crypto.ProofTree(sha256.New, certifs) //Create a MTR from the supplied certificates
+	leaves := make([]crypto.HashID, 2)
+	leaves[0] = certRoot
+	leaves[1] = prevSignedMTR
+	certRoot, _ = crypto.ProofTree(sha256.New, leaves)
+	latestSignedMTR, err := sign.Schnorr(keyPair.Suite, keyPair.Secret, certRoot)
+	if err != nil {
+		return nil
+	}
+	return &CertBlock{prevSignedMTR, latestSignedMTR, certRoot, keyPair.Public, keyPair.Suite}
+}
+
+// CreateSkipchain initializes the Skipchain which is the underlying blockchain of the service
+func (c *Client) CreateSkipchain(r *onet.Roster, genesisCertBlock *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := r.RandomServerIdentity()
-	log.Lvl4("Sending message to", dst)
 	reply := &CreateSkipchainResponse{}
-	key := &Key{c.keypair.Public, c.keypair.Suite}
-	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, key}, reply)
+	log.Print("From api")
+	err := c.SendProtobuf(dst, &CreateSkipchainRequest{r, genesisCertBlock}, reply)
 	if err != nil {
 		return nil, err
 	}
 	return reply.SkipBlock, nil
 }
 
-//CreateNewCertBlock generates a signed MTR from certifs and wraps the parameters in a CertBlock
-func (c *Client) CreateNewCertBlock(prevMTR *MerkleTreeRoot, certifs []crypto.HashID) *CertBlock {
-	root, _ := crypto.ProofTree(sha256.New, certifs) //Why can't I just use a [][]byte ?
-	signedMTR, err := sign.Schnorr(c.keypair.Suite, c.keypair.Secret, root)
-	if err != nil {
-		return nil
-	}
-	return &CertBlock{prevMTR, &MerkleTreeRoot{signedMTR}, &Key{c.keypair.Public, c.keypair.Suite}}
-}
-
 //AddNewTxn adds a new transaction to the underlying Skipchain service
-func (c *Client) AddNewTxn(sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
+func (c *Client) AddNewTxn(r *onet.Roster, sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := sb.Roster.RandomServerIdentity()
 	reply := &AddNewTxnResponse{}
-	err := c.SendProtobuf(dst, &AddNewTxnRequest{sb, cb}, reply)
+	err := c.SendProtobuf(dst, &AddNewTxnRequest{r, sb, cb}, reply)
 	if err != nil {
 		return nil, err
 	}

@@ -6,56 +6,87 @@ runs on the node.
 */
 
 import (
+	"bytes"
+
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/crypto/random"
+	"gopkg.in/dedis/crypto.v0/sign"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
+	"gopkg.in/dedis/onet.v1/network"
 )
 
-// Name is the name to refer to the Template service from another
-// package.
+// Name is the name to refer to the CertChain service from another package.
 const Name = "CertChain"
 
 func init() {
 	onet.RegisterNewService(Name, newService)
 }
 
-// Service is our template-service
+// Service is our CertChain-service
 type Service struct {
-	// We need to embed the ServiceProcessor, so that incoming messages
-	// are correctly handled.
 	*onet.ServiceProcessor
 	path string
+	//A map for the unspent transactions. Key is the string of prevSignedMTR and value is the hash of the skipblock
+	unspentTxns map[string]skipchain.SkipBlockID
 }
 
 //CreateSkipchain creates a new skipchain
 func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainResponse, onet.ClientError) {
 	client := skipchain.NewClient()
-	prevMTR := &MerkleTreeRoot{make([]byte, 5)}
-	latestMTR := &MerkleTreeRoot{random.Bytes(4, random.Stream)}
-	genesisData := &CertBlock{prevMTR, latestMTR, cs.PublicKey}
-	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyMerkleTreeRoot}, genesisData, nil) //create genesis&store skip block calls the verification function
+	log.Print("From service")
+	sb, err := client.CreateGenesis(cs.Roster, 1, 1, []skipchain.VerifierID{VerifyTxn}, cs.CertBlock, nil)
 	if err != nil {
 		return nil, err
 	}
+	s.unspentTxns[string(cs.CertBlock.PrevSignedMTR)] = sb.Hash //add block to the map, keyed by PrevSignedMTR Q:Should I just use the hash of certblock?
 	return &CreateSkipchainResponse{sb}, nil
 }
 
 //AddNewTxn stores a new transaction in the underlying Skipchain
-func (s *Service) AddNewTxn(txnRequest *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) {
-	client := skipchain.NewClient()
-	sb, err := client.StoreSkipBlock(txnRequest.SkipBlock, nil, txnRequest.CertBlock) //Is this the proper way to call that ?
+func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) {
+	client := skipchain.NewClient()                                     //Shouldn't I use a single client?
+	sb, err := client.StoreSkipBlock(txn.SkipBlock, nil, txn.CertBlock) //txn.CertBlock is passed as Data right ?
 	if err != nil {
 		return nil, err
 	}
+	s.unspentTxns[string(txn.CertBlock.PrevSignedMTR)] = sb.Latest.Hash //add block to the map, keyed by PrevSignedMTR
 	return &AddNewTxnResponse{sb.Latest}, nil
 }
 
-//VerifyMerkleTreeRoot verifies a signed Merkle tree root
-func (s *Service) VerifyMerkleTreeRoot(newID []byte, newSB *skipchain.SkipBlock) bool {
-	//What does newID contain? How can I access the tree roots inside this function ?
-	//Run verification algorithm here, depending on it ret true or false
-	log.Print("Verify is called!")
+//VerifyTxn verifies a CertChain txn
+//Verification is done as follows:
+//1. Get the public key from the previous block
+//2. Verify the signature on the blocks latestMTR, if previousMTR is all 0(this is the genesis certblock) return true
+//3. Check whether the block is in unspentTxn map. If it is, remove block from the map and return true. Otherwise, returnfalse
+func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
+	//Do I need to call verifications for skipchain block as well or is it handled by itself?
+	client := skipchain.NewClient()
+	parentSB, getBlockErr := client.GetSingleBlock(newSB.Roster, newSB.ParentBlockID) //Does this return genesis when called by the genesis ?
+	if getBlockErr != nil {
+		return false
+	}
+	//Get the public key from the previous block
+	_, cbPrev, _ := network.Unmarshal(parentSB.Data)
+	publicKey := cbPrev.(*CertBlock).PublicKey //Verification has to be done using the public key of the previous block
+	suite := cbPrev.(*CertBlock).Suite
+
+	//Verify the signature
+	_, cb, _ := network.Unmarshal(newSB.Data)
+	signErr := sign.VerifySchnorr(suite, publicKey, cb.(*CertBlock).LatestMTR, cb.(*CertBlock).LatestSignedMTR)
+	if signErr != nil {
+		return false
+	}
+	//If block doesn't have any previous MTR, verification only consists of checking the signature
+	if bytes.Equal(cb.(*CertBlock).PrevSignedMTR, make([]byte, 32)) {
+		return true
+	}
+	//Check if the block is unspent. If it is spent, i.e. it can't be found in the map, return false
+	if _, exists := s.unspentTxns[string(cb.(*CertBlock).PrevSignedMTR)]; !exists {
+		return false
+
+	}
+	//Spend the txn by removing it from map
+	delete(s.unspentTxns, string(cb.(*CertBlock).PrevSignedMTR))
 	return true
 }
 
@@ -69,6 +100,6 @@ func newService(c *onet.Context) onet.Service {
 	if err := s.RegisterHandlers(s.CreateSkipchain, s.AddNewTxn); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
-	log.ErrFatal(skipchain.RegisterVerification(c, VerifyMerkleTreeRoot, s.VerifyMerkleTreeRoot))
+	log.ErrFatal(skipchain.RegisterVerification(c, VerifyTxn, s.VerifyTxn))
 	return s
 }

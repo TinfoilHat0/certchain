@@ -12,60 +12,50 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-// We need to register all messages so the network knows how to handle them.
+// We need to register all messages so the network knows how to handle them. //move them to messsages?
 func init() {
 	for _, msg := range []interface{}{
 		&CreateSkipchainRequest{}, //What to put , what not to put ? (Things that will be marshalled ?)
 		&CreateSkipchainResponse{},
 		&AddNewTxnRequest{},
 		&AddNewTxnResponse{},
-		&MerkleTreeRoot{},
-		&Key{},
 		&CertBlock{},
 	} {
 		network.RegisterMessage(msg)
 	}
 }
 
-// VerifyMerkleTreeRoot is the ID of the verifier for the Certchain service
-var VerifyMerkleTreeRoot = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
+// VerifyTxn is the ID of the verifier for the Certchain service
+var VerifyTxn = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
 
-//CreateSkipchainRequest is the structure for a new skipchain request
+//CreateSkipchainRequest is the structure for a new skipchain addition request
 type CreateSkipchainRequest struct {
 	Roster    *onet.Roster
-	PublicKey *Key
+	CertBlock *CertBlock
 }
 
-//CreateSkipchainResponse returns a block from the underlying Skipchain service
+//CreateSkipchainResponse is the structure for a skipchain addition response
 type CreateSkipchainResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//AddNewTxnRequest is the structure for a transaction request
+//AddNewTxnRequest is the structure for a txn addition request
 type AddNewTxnRequest struct {
+	Roster    *onet.Roster
 	SkipBlock *skipchain.SkipBlock
 	CertBlock *CertBlock
 }
 
-//AddNewTxnResponse is the structure for a transaction response
+//AddNewTxnResponse is the structure for a txn addition request response
 type AddNewTxnResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//MerkleTreeRoot is a wrapper for a Merkle Tree Root which is just a slice of bytes
-type MerkleTreeRoot struct {
-	MTRoot []byte
-}
-
-//Key is a wrapper for the key used in Schnorr Signature
-type Key struct {
-	PublicKey abstract.Point
-	suite     abstract.Suite
-}
-
-//CertBlock stores a transaction of the Certchain(this is stored as Data in Skipchain)
+//CertBlock stores a transaction of the Certchain (this is stored in data field of a Skipblock)
 type CertBlock struct {
-	PrevMTR   *MerkleTreeRoot
-	LatestMTR *MerkleTreeRoot
-	PublicKey *Key
+	PrevSignedMTR   []byte
+	LatestSignedMTR []byte
+	LatestMTR       []byte
+	PublicKey       abstract.Point
+	Suite           abstract.Suite
 }

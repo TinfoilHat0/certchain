@@ -1,10 +1,8 @@
 package template
 
 import (
-	"crypto/sha256"
 	"testing"
 
-	"github.com/dedis/onet/crypto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
@@ -14,35 +12,47 @@ func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
-func TestServiceTemplate(t *testing.T) {
+//Create a new CertBlock
+func TestGenerateCertBlock(t *testing.T) {
+	client := NewClient()
+	certifs := client.GenerateCertificates(5)
+	assert.NotNil(t, certifs)
+
+	prevSignedMTR := make([]byte, 32)
+	cb := client.CreateCertBlock(prevSignedMTR, certifs, client.keypair)
+	assert.NotNil(t, cb)
+}
+
+//Create a new CertBlock and store it in the skipchain
+func TestCreateSkipChain(t *testing.T) {
+	client := NewClient()
 	local := onet.NewTCPTest()
-	// generate 3 hosts, they don't connect, they process messages, and they
-	// don't register the tree or entitylist
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
 
-	//Create a new skipchain
-	client := NewClient()
-	sb, err := client.CreateSkipchain(roster)
-	log.ErrFatal(err, "Couldn't send")
-	assert.NotNil(t, sb)
-
-	//Generate CertBlock from bunch of certificates
-	newHash := sha256.New
-	hash := newHash()
-	n := 5
-	leaves := make([]crypto.HashID, n)
-	for i := range leaves {
-		leaves[i] = make([]byte, hash.Size())
-		for j := range leaves[i] {
-			leaves[i][j] = byte(i)
-		}
-	}
-	cb := client.CreateNewCertBlock(nil, leaves)
-	assert.NotNil(t, cb)
-
-	sb, err = client.AddNewTxn(sb, cb)
+	cb := client.CreateCertBlock(make([]byte, 32), client.GenerateCertificates(5), client.keypair)
+	sb, err := client.CreateSkipchain(roster, cb)
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
 
 }
+
+/*
+//Add a new txn to the skipchain
+func TestAddNewTxn(t *testing.T) {
+	client := NewClient()
+	local := onet.NewTCPTest()
+	_, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	cb := client.CreateCertBlock(make([]byte, 32), client.GenerateCertificates(5), client.keypair)
+	sb, err := client.CreateSkipchain(roster, cb)
+	log.ErrFatal(err, "Couldn't send")
+	assert.NotNil(t, sb)
+
+	sb, err = client.AddNewTxn(roster, sb, cb)
+	log.ErrFatal(err, "Couldn't send")
+	assert.NotNil(t, sb)
+
+}
+*/
