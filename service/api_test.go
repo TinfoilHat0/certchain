@@ -41,14 +41,10 @@ func TestCreateSkipChain(t *testing.T) {
 	_, sbRawData, merr := network.Unmarshal(sb.Data)
 	log.ErrFatal(merr)
 	assert.NotNil(t, sbRawData)
-
 	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
 	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
 	assert.Equal(t, cb.PrevMTR, sbRawData.(*CertBlock).PrevMTR)
-	log.Print(client.keyPair.Public)
-	log.Print(cb.PublicKey)
-	log.Print(sbRawData.(*CertBlock).PublicKey)
-	assert.Equal(t, cb.PublicKey, sbRawData.(*CertBlock).PublicKey)
+	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
 
 }
 
