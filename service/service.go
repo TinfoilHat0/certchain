@@ -44,7 +44,7 @@ func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainR
 //AddNewTxn stores a new transaction in the underlying Skipchain service
 func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.ClientError) { //Where do I use roster here ?
 	client := skipchain.NewClient()
-	sb, err := client.StoreSkipBlock(txn.SkipBlock, nil, txn.CertBlock) //txn.CertBlock is passed as Data right ?
+	sb, err := client.StoreSkipBlock(txn.SkipBlock, nil, txn.CertBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	if cerr != nil {
 		return false
 	}
-	//Get the public key from the previous block as verification has to be done using the public key of the previous block
+	//Get the public key from the previous block as verification has to be done using that key
 	_, cbPrev, err := network.Unmarshal(previousSB.Data)
 	log.ErrFatal(err)
 	publicKey := cbPrev.(*CertBlock).PublicKey
@@ -72,16 +72,16 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	if signErr != nil {
 		return false
 	}
-	//If block doesn't have any previous MTR, verification only consists of checking the signature
+	//If block is the genesis block, verification only consists of checking the signature
 	if bytes.Equal(cb.(*CertBlock).PrevMTR, make([]byte, 32)) {
 		return true
 	}
 	log.Print(len(s.unspentTxns))
-	//Check if the block is unspent. If it is not spent, i.e. it can't be found in the map, return false
+	//Check if the block is unspent. If it is spent, i.e. it can't be found in the map, return false
 	if _, exists := s.unspentTxns[string(cb.(*CertBlock).PrevMTR)]; !exists {
 		return false
 	}
-	//Spend the txn by removing it from map
+	//Spend the txn by removing it from the map
 	delete(s.unspentTxns, string(cb.(*CertBlock).PrevMTR))
 	return true
 }
