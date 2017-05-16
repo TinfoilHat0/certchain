@@ -88,7 +88,7 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	return true
 }
 
-// StartPropagation is a convenience function to call propagateTxnMap so that we don't duplicate code
+// StartPropagation is a convenience function to call propagate so that we don't duplicate code
 func (s *Service) startPropagation(roster *onet.Roster, blockMTR []byte, blockHash skipchain.SkipBlockID) error {
 	log.Lvl3("Starting to propagate for service", s.ServerIdentity())
 	replies, err := s.propagate(roster, &PropagateTxnInfo{blockMTR, blockHash}, propagateTimeout)
@@ -101,7 +101,8 @@ func (s *Service) startPropagation(roster *onet.Roster, blockMTR []byte, blockHa
 	return nil
 }
 
-// PropagateTxnMap is used to propagate unspenTxnMap across nodes of the roster
+// PropagateTxnMap is the propagation function of this service which is
+// used to share data across nodes of a roster
 func (s *Service) propagateTxnMap(msg network.Message) {
 	txnInfo, ok := msg.(*PropagateTxnInfo)
 	if !ok {
