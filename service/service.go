@@ -109,7 +109,7 @@ func (s *Service) propagateTxnMap(msg network.Message) {
 		log.Error("Couldn't convert to PropagateTxnInfo")
 		return
 	}
-	s.unspentTxnMap[string(txnInfo.BlockMTR)] = txnInfo.BlockMTR
+	s.unspentTxnMap[string(txnInfo.BlockMTR)] = txnInfo.BlockHash
 }
 
 // newService receives the context and a path where it can write its
