@@ -19,6 +19,7 @@ func init() {
 		&CreateSkipchainResponse{},
 		&AddNewTxnRequest{},
 		&AddNewTxnResponse{},
+		&PropagateTxnInfo{},
 		&CertBlock{},
 		&Service{},
 	} {
@@ -28,6 +29,9 @@ func init() {
 
 // VerifyTxn is the ID of the verifier for the Certchain service
 var VerifyTxn = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
+
+// How many msec to wait before a timeout is generated in the propagation.
+const propagateTimeout = 10000
 
 //CreateSkipchainRequest is the structure for a new skipchain addition request
 type CreateSkipchainRequest struct {
@@ -50,6 +54,12 @@ type AddNewTxnRequest struct {
 //AddNewTxnResponse is the structure for a txn addition request response
 type AddNewTxnResponse struct {
 	SkipBlock *skipchain.SkipBlock
+}
+
+// PropagateTxnInfo is a wrapper struct to propagte txn info across nodes
+type PropagateTxnInfo struct {
+	BlockMTR  []byte
+	BlockHash skipchain.SkipBlockID
 }
 
 //CertBlock stores a transaction of the Certchain (this is stored in data field of a Skipblock)

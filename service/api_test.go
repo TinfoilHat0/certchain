@@ -13,7 +13,7 @@ func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
-//Create a new CertBlock from 5 random certificates
+// Create a new CertBlock from 5 random certificates
 func TestGenerateCertBlock(t *testing.T) {
 	client := NewClient()
 	certifs := client.GenerateCertificates(5)
@@ -26,7 +26,7 @@ func TestGenerateCertBlock(t *testing.T) {
 	assert.Equal(t, client.keyPair.Public, cb.PublicKey)
 }
 
-//Initialize a new SkipChain and store a CertBlock in it
+// Initialize a new SkipChain and store a CertBlock in it
 func TestCreateSkipChain(t *testing.T) {
 	client := NewClient()
 	local := onet.NewTCPTest()
@@ -48,7 +48,7 @@ func TestCreateSkipChain(t *testing.T) {
 
 }
 
-//Add a new txn to the skipchain
+// Add a new txn to the skipchain
 func TestAddNewTxn(t *testing.T) {
 	client := NewClient()
 	local := onet.NewTCPTest()
@@ -60,10 +60,18 @@ func TestAddNewTxn(t *testing.T) {
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
 
-	cbNew := client.CreateCertBlock(client.GenerateCertificates(5), cb.LatestMTR, client.keyPair)
-	assert.NotNil(t, cbNew)
-	sb, err = client.AddNewTxn(roster, sb, cbNew)
+	cb = client.CreateCertBlock(client.GenerateCertificates(5), cb.LatestMTR, client.keyPair)
+	assert.NotNil(t, cb)
+	sb, err = client.AddNewTxn(roster, sb, cb)
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
+
+	_, sbRawData, merr := network.Unmarshal(sb.Data)
+	log.ErrFatal(merr)
+	assert.NotNil(t, sbRawData)
+	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
+	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
+	assert.Equal(t, cb.PrevMTR, sbRawData.(*CertBlock).PrevMTR)
+	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
 
 }
