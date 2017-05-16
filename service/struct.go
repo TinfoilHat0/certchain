@@ -1,4 +1,4 @@
-package template
+package certchain
 
 /*
 This holds the messages used to communicate with the service over the network.
@@ -33,30 +33,30 @@ var VerifyTxn = skipchain.VerifierID(uuid.NewV5(uuid.NamespaceURL, "Certchain"))
 // How many msec to wait before a timeout is generated in the propagation.
 const propagateTimeout = 10000
 
-//CreateSkipchainRequest is the structure for a new skipchain addition request
+// CreateSkipchainRequest is the structure for a new skipchain addition request
 type CreateSkipchainRequest struct {
 	Roster    *onet.Roster
 	CertBlock *CertBlock
 }
 
-//CreateSkipchainResponse is the structure for a skipchain addition response
+// CreateSkipchainResponse is the structure for a skipchain addition response
 type CreateSkipchainResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-//AddNewTxnRequest is the structure for a txn addition request
+// AddNewTxnRequest is the structure for a txn addition request
 type AddNewTxnRequest struct {
 	Roster    *onet.Roster
 	SkipBlock *skipchain.SkipBlock
 	CertBlock *CertBlock
 }
 
-//AddNewTxnResponse is the structure for a txn addition request response
+// AddNewTxnResponse is the structure for a txn addition request response
 type AddNewTxnResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-// PropagateTxnInfo is a wrapper struct to propagte txn info across nodes
+// PropagateTxnInfo is a wrapper to propagte txn info across nodes
 type PropagateTxnInfo struct {
 	BlockMTR  []byte
 	BlockHash skipchain.SkipBlockID

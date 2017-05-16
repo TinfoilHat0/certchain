@@ -1,4 +1,4 @@
-package template
+package certchain
 
 /*
 The api.go defines the methods that can be called from the outside. Most
@@ -20,10 +20,10 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-//Global variables
+// Suite used in signing
 var suite = network.Suite
 
-//32 bytes
+// 32 bytes
 var hashSize = sha256.New().Size()
 
 // Client is a structure to communicate with the CoSi
@@ -39,13 +39,13 @@ func NewClient() *Client {
 	return &Client{onet.NewClient(Name), kp} //by reference or by value?
 }
 
-//GenerateNewKeyPair generetes a new keypair for the client
+// GenerateNewKeyPair generetes a new keypair for the client
 func (c *Client) GenerateNewKeyPair() {
 	kp := config.NewKeyPair(suite)
 	c.keyPair = kp
 }
 
-//GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
+// GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
 func (c *Client) GenerateCertificates(n int) []crypto.HashID {
 	leaves := make([]crypto.HashID, n)
 	for i := range leaves {
@@ -54,9 +54,9 @@ func (c *Client) GenerateCertificates(n int) []crypto.HashID {
 	return leaves
 }
 
-//CreateCertBlock builds a new CertBlock from the supplied certificates
+// CreateCertBlock builds a new CertBlock from the supplied certificates
 func (c *Client) CreateCertBlock(certifs []crypto.HashID, prevMTR []byte, keyPair *config.KeyPair) *CertBlock {
-	certMTR, _ := crypto.ProofTree(sha256.New, certifs) //Create a MTR from the supplied certificates
+	certMTR, _ := crypto.ProofTree(sha256.New, certifs)
 	leaves := make([]crypto.HashID, 2)
 	leaves[0] = prevMTR
 	leaves[1] = certMTR
@@ -79,7 +79,7 @@ func (c *Client) CreateSkipchain(r *onet.Roster, genesisCertBlock *CertBlock) (*
 	return reply.SkipBlock, nil
 }
 
-//AddNewTxn adds a new transaction to the underlying Skipchain service
+// AddNewTxn adds a new transaction to the underlying Skipchain service
 func (c *Client) AddNewTxn(r *onet.Roster, sb *skipchain.SkipBlock, cb *CertBlock) (*skipchain.SkipBlock, onet.ClientError) {
 	dst := sb.Roster.RandomServerIdentity()
 	reply := &AddNewTxnResponse{}

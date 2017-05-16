@@ -1,4 +1,4 @@
-package template
+package certchain
 
 /*
 The service.go defines what to do for each API-call. This part of the service
@@ -88,7 +88,7 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	return true
 }
 
-// notify other services about new/updated unspentTxnMap
+// StartPropagation is a convenience function to call propagateTxnMap so that we don't duplicate code
 func (s *Service) startPropagation(roster *onet.Roster, blockMTR []byte, blockHash skipchain.SkipBlockID) error {
 	log.Lvl3("Starting to propagate for service", s.ServerIdentity())
 	replies, err := s.propagate(roster, &PropagateTxnInfo{blockMTR, blockHash}, propagateTimeout)
@@ -101,7 +101,7 @@ func (s *Service) startPropagation(roster *onet.Roster, blockMTR []byte, blockHa
 	return nil
 }
 
-// PropagateTxnMap propagates TxnMap across nodes of the roster
+// PropagateTxnMap is used to propagate unspenTxnMap across nodes of the roster
 func (s *Service) propagateTxnMap(msg network.Message) {
 	txnInfo, ok := msg.(*PropagateTxnInfo)
 	if !ok {

@@ -1,4 +1,4 @@
-package template
+package certchain
 
 import (
 	"testing"
@@ -48,7 +48,7 @@ func TestCreateSkipChain(t *testing.T) {
 
 }
 
-// Add a new txn to the skipchain
+// Add a new txn to the SkipChain
 func TestAddNewTxn(t *testing.T) {
 	client := NewClient()
 	local := onet.NewTCPTest()
