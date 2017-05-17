@@ -11,15 +11,15 @@ This part of the service runs on the client or the app.
 import (
 	"bytes"
 	"crypto/sha256"
+	"log"
 
 	"github.com/TinfoilHat0/certchain/merkle_tree"
+	coniks_crypto "github.com/coniks-sys/coniks-go/crypto"
+	coniks_sign "github.com/coniks-sys/coniks-go/crypto/sign"
 	"github.com/coniks-sys/coniks-go/crypto/vrf"
 	"github.com/coniks-sys/coniks-go/merkletree"
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/onet/log"
-	"gopkg.in/dedis/crypto.v0/config"
 	"gopkg.in/dedis/crypto.v0/random"
-	"gopkg.in/dedis/crypto.v0/sign"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
@@ -30,30 +30,39 @@ var suite = network.Suite
 // 32 bytes
 var hashSize = sha256.New().Size()
 
+// CONIKS setup
+var vrfPrivKey, _ = vrf.GenerateKey(bytes.NewReader(
+	[]byte("deterministic tests need 32 byte")))
+
 // Client is a structure to communicate with the CoSi
 // service
 type Client struct {
 	*onet.Client
-	keyPair     *config.KeyPair
-	coniksKey   string
-	coniksIndex []byte
+	signKey coniks_sign.PrivateKey
+	pad     *merkletree.PAD
+	certCtr uint64
 }
 
 // NewClient instantiates a new cosi.Client
 func NewClient() *Client {
-	kp := config.NewKeyPair(suite)
-	coniksKey := "my_id@epfl.ch"
-	vrfPrivKey, err := vrf.GenerateKey(bytes.NewReader(
-		[]byte("deterministic tests need 32 byte")))
-	log.ErrFatal(err)
-	coniksIndex := vrfPrivKey.Compute([]byte(coniksKey))
-	return &Client{onet.NewClient(Name), kp, coniksKey, coniksIndex}
+	signKey, err := coniks_sign.GenerateKey(nil)
+	if err != nil {
+		return nil
+	}
+	pad, err := merkletree.NewPAD(PadAd{"abc"}, signKey, vrfPrivKey, 10)
+	if err != nil {
+		return nil
+	}
+	return &Client{onet.NewClient(Name), signKey, pad, 0}
 }
 
-// GenerateNewKeyPair generetes a new keypair for the client
-func (c *Client) GenerateNewKeyPair() {
-	kp := config.NewKeyPair(suite)
-	c.keyPair = kp
+// GenerateNewKey generetes a new secret key for the client
+func (c *Client) GenerateNewKey() {
+	signKey, err := coniks_sign.GenerateKey(nil)
+	if err != nil {
+		return
+	}
+	c.signKey = signKey
 }
 
 // GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
@@ -65,52 +74,27 @@ func (c *Client) GenerateCertificates(n int) []crypto.HashID {
 	return leaves
 }
 
-// CreateCertBlock builds a new CertBlock from the supplied certificates
-func (c *Client) CreateCertBlock(certifs []crypto.HashID, prevMTR []byte, keyPair *config.KeyPair) *CertBlock {
-	certMTR, _ := crypto.ProofTree(sha256.New, certifs)
-	leaves := make([]crypto.HashID, 2)
-	leaves[0] = prevMTR
-	leaves[1] = certMTR
-	latestMTR, _ := crypto.ProofTree(sha256.New, leaves)
-	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, latestMTR)
-	if err != nil {
-		return nil
-	}
-	return &CertBlock{latestSignedMTR, latestMTR, prevMTR, keyPair.Public}
-}
-
 // CreateCertBlockCONIKS builds a new CertBlock from the supplied certificates using CONIKs Merkle Tree algorithm
-func (c *Client) CreateCertBlockCONIKS(certifs []crypto.HashID, prevMTR []byte, keyPair *config.KeyPair) *CertBlock {
-	// create a new merkle tree
-	m, err := merkletree.NewMerkleTree()
-	if err != nil {
-		return nil
-	}
-	// put the previous root
-	if err := m.Set(c.coniksIndex, c.coniksKey, prevMTR); err != nil {
-		return nil
-	}
-	// add new certificates
+func (c *Client) CreateCertBlockCONIKS(certifs []crypto.HashID) *CertBlock {
 	for _, cert := range certifs {
-		if err := m.Set(c.coniksIndex, c.coniksKey, cert); err != nil {
+		key := string(c.certCtr)
+		if err := c.pad.Set(key, cert); err != nil {
 			return nil
 		}
+		c.pad.Update(nil)
 	}
-	m.RecomputeHash()
-	latestMTR := m.GetRootHash()
-	// Or use Get() and then lookupIndex of the returned value?
-	/*
-		// get the authentication path from the tree
-		ap := m.Get(c.coniksIndex)
-		if ap.Leaf.Value == nil {
-			return nil
-		}
-	*/
-	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, latestMTR)
-	if err != nil {
+	str := c.pad.LatestSTR()
+	latestSignedMTR := str.Signature
+	latestSignedMTRHash := coniks_crypto.Digest(latestSignedMTR)
+	latestMTR := str.Serialize()
+	prevSignedMTRHash := str.PreviousSTRHash
+	publicKey, ok := c.signKey.Public()
+	if !ok {
 		return nil
 	}
-	return &CertBlock{latestSignedMTR, latestMTR, prevMTR, keyPair.Public}
+	log.Print(latestSignedMTRHash)
+	log.Print(prevSignedMTRHash)
+	return &CertBlock{latestSignedMTR, latestSignedMTRHash, prevSignedMTRHash, latestMTR, publicKey}
 }
 
 // CreateSkipchain initializes the Skipchain which is the underlying blockchain service

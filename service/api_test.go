@@ -13,6 +13,7 @@ func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
+/*
 // Create a new CertBlock from 5 random certificates
 func TestGenerateCertBlock(t *testing.T) {
 	client := NewClient()
@@ -75,6 +76,19 @@ func TestAddNewTxn(t *testing.T) {
 	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
 
 }
+*/
+
+/*
+// Create a new CertBlock from 5 random certificates using CONIKS' MTR algorithm
+func TestGenerateCertBlockCONIKS(t *testing.T) {
+	client := NewClient()
+	certifs := client.GenerateCertificates(5)
+	assert.NotNil(t, certifs)
+
+	cb := client.CreateCertBlockCONIKS(certifs)
+	assert.NotNil(t, cb)
+}
+*/
 
 // Add a new txn to the SkipChain by running the verification function using the CONIKS' Merkle Tree Algorithm
 func TestAddNewTxnCONIKS(t *testing.T) {
@@ -83,12 +97,12 @@ func TestAddNewTxnCONIKS(t *testing.T) {
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
 
-	cb := client.CreateCertBlockCONIKS(client.GenerateCertificates(5), make([]byte, hashSize), client.keyPair)
+	cb := client.CreateCertBlockCONIKS(client.GenerateCertificates(1))
 	sb, err := client.CreateSkipchain(roster, cb)
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
 
-	cb = client.CreateCertBlockCONIKS(client.GenerateCertificates(5), cb.LatestMTR, client.keyPair)
+	cb = client.CreateCertBlockCONIKS(client.GenerateCertificates(1))
 	assert.NotNil(t, cb)
 	sb, err = client.AddNewTxn(roster, sb, cb)
 	log.ErrFatal(err, "Couldn't send")
@@ -96,10 +110,13 @@ func TestAddNewTxnCONIKS(t *testing.T) {
 
 	_, sbRawData, merr := network.Unmarshal(sb.Data)
 	log.ErrFatal(merr)
+
 	assert.NotNil(t, sbRawData)
+
 	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
 	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
-	assert.Equal(t, cb.PrevMTR, sbRawData.(*CertBlock).PrevMTR)
-	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
+	assert.Equal(t, cb.PrevSignedMTRHash, sbRawData.(*CertBlock).PrevSignedMTRHash)
+
+	//assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
 
 }

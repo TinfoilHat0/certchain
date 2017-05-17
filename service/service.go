@@ -6,11 +6,8 @@ runs on the node.
 */
 
 import (
-	"bytes"
-
 	"github.com/dedis/cothority/messaging"
 	"github.com/dedis/cothority/skipchain"
-	"gopkg.in/dedis/crypto.v0/sign"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
@@ -38,7 +35,7 @@ func (s *Service) CreateSkipchain(cs *CreateSkipchainRequest) (*CreateSkipchainR
 	if err != nil {
 		return nil, err
 	}
-	perr := s.startPropagation(cs.Roster, cs.CertBlock.LatestMTR, sb.Hash)
+	perr := s.startPropagation(cs.Roster, cs.CertBlock.LatestSignedMTRHash, sb.Hash)
 	log.ErrFatal(perr)
 	return &CreateSkipchainResponse{sb}, nil
 }
@@ -50,7 +47,7 @@ func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.Cli
 	if err != nil {
 		return nil, err
 	}
-	perr := s.startPropagation(txn.Roster, txn.CertBlock.LatestMTR, sb.Latest.Hash)
+	perr := s.startPropagation(txn.Roster, txn.CertBlock.LatestSignedMTRHash, sb.Latest.Hash)
 	log.ErrFatal(perr)
 	return &AddNewTxnResponse{sb.Latest}, nil
 }
@@ -71,20 +68,15 @@ func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	publicKey := cbPrev.(*CertBlock).PublicKey
 	// Verify the signature
 	_, cb, _ := network.Unmarshal(newSB.Data)
-	signErr := sign.VerifySchnorr(suite, publicKey, cb.(*CertBlock).LatestMTR, cb.(*CertBlock).LatestSignedMTR)
-	if signErr != nil {
+	if !publicKey.Verify(cb.(*CertBlock).LatestMTR, cb.(*CertBlock).LatestSignedMTR) {
 		return false
 	}
-	// If block is the genesis block, verification only consists of checking the signature
-	if bytes.Equal(cb.(*CertBlock).PrevMTR, make([]byte, 32)) {
-		return true
-	}
-	// Check if the block is unspent. If it is spent, i.e. it can't be found in the map, return false
-	if _, exists := s.unspentTxnMap[string(cb.(*CertBlock).PrevMTR)]; !exists {
+	// Check if the block references to an unspent txn
+	if _, exists := s.unspentTxnMap[string(cb.(*CertBlock).PrevSignedMTRHash)]; !exists {
 		return false
 	}
-	// Spend the txn by removing it from the map
-	delete(s.unspentTxnMap, string(cb.(*CertBlock).PrevMTR))
+	// Spend the referred txn by removing it from the map
+	delete(s.unspentTxnMap, string(cb.(*CertBlock).PrevSignedMTRHash))
 	return true
 }
 

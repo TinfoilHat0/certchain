@@ -5,9 +5,9 @@ This holds the messages used to communicate with the service over the network.
 */
 
 import (
+	coniks_sign "github.com/coniks-sys/coniks-go/crypto/sign"
 	"github.com/dedis/cothority/skipchain"
 	"github.com/satori/go.uuid"
-	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
@@ -21,6 +21,7 @@ func init() {
 		&AddNewTxnResponse{},
 		&PropagateTxnInfo{},
 		&CertBlock{},
+		&PadAd{},
 		&Service{},
 	} {
 		network.RegisterMessage(msg)
@@ -64,8 +65,18 @@ type PropagateTxnInfo struct {
 
 // CertBlock stores a transaction of the Certchain (this is stored in data field of a Skipblock)
 type CertBlock struct {
-	LatestSignedMTR []byte
-	LatestMTR       []byte
-	PrevMTR         []byte
-	PublicKey       abstract.Point
+	LatestSignedMTR     []byte
+	LatestSignedMTRHash []byte
+	PrevSignedMTRHash   []byte
+	LatestMTR           []byte
+	PublicKey           coniks_sign.PublicKey
+}
+
+//PadAd stores associate data of PAD
+type PadAd struct {
+	data string
+}
+
+func (t PadAd) Serialize() []byte {
+	return []byte(t.data)
 }
