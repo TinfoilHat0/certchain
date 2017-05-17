@@ -72,11 +72,12 @@ type CertBlock struct {
 	PublicKey           coniks_sign.PublicKey
 }
 
-//PadAd stores associate data of PAD
+// PadAd stores associate data of PAD
 type PadAd struct {
 	data string
 }
 
+// Serialize is required to match PadAd to Associate Data Interface (coniks-pad)
 func (t PadAd) Serialize() []byte {
 	return []byte(t.data)
 }

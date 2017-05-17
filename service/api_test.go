@@ -13,18 +13,14 @@ func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
-/*
-// Create a new CertBlock from 5 random certificates
+// Generate a CertBlock
 func TestGenerateCertBlock(t *testing.T) {
 	client := NewClient()
 	certifs := client.GenerateCertificates(5)
 	assert.NotNil(t, certifs)
 
-	prevMTR := make([]byte, hashSize)
-	cb := client.CreateCertBlock(certifs, prevMTR, client.keyPair)
+	cb := client.CreateCertBlock(certifs)
 	assert.NotNil(t, cb)
-	assert.Equal(t, cb.PrevMTR, prevMTR)
-	assert.Equal(t, client.keyPair.Public, cb.PublicKey)
 }
 
 // Initialize a new SkipChain and store a CertBlock in it
@@ -34,7 +30,7 @@ func TestCreateSkipChain(t *testing.T) {
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
 
-	cb := client.CreateCertBlock(client.GenerateCertificates(5), make([]byte, hashSize), client.keyPair)
+	cb := client.CreateCertBlock(client.GenerateCertificates(1))
 	sb, err := client.CreateSkipchain(roster, cb)
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
@@ -42,67 +38,28 @@ func TestCreateSkipChain(t *testing.T) {
 	_, sbRawData, merr := network.Unmarshal(sb.Data)
 	log.ErrFatal(merr)
 	assert.NotNil(t, sbRawData)
+
 	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
 	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
-	assert.Equal(t, cb.PrevMTR, sbRawData.(*CertBlock).PrevMTR)
-	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
+	assert.Equal(t, cb.PrevSignedMTRHash, sbRawData.(*CertBlock).PrevSignedMTRHash)
+	assert.Equal(t, cb.PublicKey, sbRawData.(*CertBlock).PublicKey)
 
 }
 
-// Add a new txn to the SkipChain by running the verification function
+// Add a new txn to the SkipChain by running the verification function using the CONIKS' Merkle Tree Algorithm
 func TestAddNewTxn(t *testing.T) {
 	client := NewClient()
 	local := onet.NewTCPTest()
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
 
-	cb := client.CreateCertBlock(client.GenerateCertificates(5), make([]byte, hashSize), client.keyPair)
+	cb := client.CreateCertBlock(client.GenerateCertificates(1))
 	sb, err := client.CreateSkipchain(roster, cb)
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
 
-	cb = client.CreateCertBlock(client.GenerateCertificates(5), cb.LatestMTR, client.keyPair)
-	assert.NotNil(t, cb)
-	sb, err = client.AddNewTxn(roster, sb, cb)
-	log.ErrFatal(err, "Couldn't send")
-	assert.NotNil(t, sb)
-
-	_, sbRawData, merr := network.Unmarshal(sb.Data)
-	log.ErrFatal(merr)
-	assert.NotNil(t, sbRawData)
-	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
-	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
-	assert.Equal(t, cb.PrevMTR, sbRawData.(*CertBlock).PrevMTR)
-	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
-
-}
-*/
-
-/*
-// Create a new CertBlock from 5 random certificates using CONIKS' MTR algorithm
-func TestGenerateCertBlockCONIKS(t *testing.T) {
-	client := NewClient()
-	certifs := client.GenerateCertificates(5)
-	assert.NotNil(t, certifs)
-
-	cb := client.CreateCertBlockCONIKS(certifs)
-	assert.NotNil(t, cb)
-}
-*/
-
-// Add a new txn to the SkipChain by running the verification function using the CONIKS' Merkle Tree Algorithm
-func TestAddNewTxnCONIKS(t *testing.T) {
-	client := NewClient()
-	local := onet.NewTCPTest()
-	_, roster, _ := local.GenTree(3, true)
-	defer local.CloseAll()
-
-	cb := client.CreateCertBlockCONIKS(client.GenerateCertificates(1))
-	sb, err := client.CreateSkipchain(roster, cb)
-	log.ErrFatal(err, "Couldn't send")
-	assert.NotNil(t, sb)
-
-	cb = client.CreateCertBlockCONIKS(client.GenerateCertificates(1))
+	// Adding more than one certificate at a time causes error
+	cb = client.CreateCertBlock(client.GenerateCertificates(1))
 	assert.NotNil(t, cb)
 	sb, err = client.AddNewTxn(roster, sb, cb)
 	log.ErrFatal(err, "Couldn't send")
@@ -116,7 +73,6 @@ func TestAddNewTxnCONIKS(t *testing.T) {
 	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
 	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
 	assert.Equal(t, cb.PrevSignedMTRHash, sbRawData.(*CertBlock).PrevSignedMTRHash)
-
-	//assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
+	assert.Equal(t, cb.PublicKey, sbRawData.(*CertBlock).PublicKey)
 
 }

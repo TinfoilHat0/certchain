@@ -11,7 +11,6 @@ This part of the service runs on the client or the app.
 import (
 	"bytes"
 	"crypto/sha256"
-	"log"
 
 	"github.com/TinfoilHat0/certchain/merkle_tree"
 	coniks_crypto "github.com/coniks-sys/coniks-go/crypto"
@@ -67,6 +66,7 @@ func (c *Client) GenerateNewKey() {
 
 // GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
 func (c *Client) GenerateCertificates(n int) []crypto.HashID {
+	// Change this to one certificate at a time ?
 	leaves := make([]crypto.HashID, n)
 	for i := range leaves {
 		leaves[i] = random.Bytes(hashSize, random.Stream)
@@ -74,8 +74,8 @@ func (c *Client) GenerateCertificates(n int) []crypto.HashID {
 	return leaves
 }
 
-// CreateCertBlockCONIKS builds a new CertBlock from the supplied certificates using CONIKs Merkle Tree algorithm
-func (c *Client) CreateCertBlockCONIKS(certifs []crypto.HashID) *CertBlock {
+// CreateCertBlock builds a new CertBlock from the supplied certificates using CONIKs Merkle Tree algorithm
+func (c *Client) CreateCertBlock(certifs []crypto.HashID) *CertBlock {
 	for _, cert := range certifs {
 		key := string(c.certCtr)
 		if err := c.pad.Set(key, cert); err != nil {
@@ -86,14 +86,12 @@ func (c *Client) CreateCertBlockCONIKS(certifs []crypto.HashID) *CertBlock {
 	str := c.pad.LatestSTR()
 	latestSignedMTR := str.Signature
 	latestSignedMTRHash := coniks_crypto.Digest(latestSignedMTR)
-	latestMTR := str.Serialize()
 	prevSignedMTRHash := str.PreviousSTRHash
+	latestMTR := str.Serialize()
 	publicKey, ok := c.signKey.Public()
 	if !ok {
 		return nil
 	}
-	log.Print(latestSignedMTRHash)
-	log.Print(prevSignedMTRHash)
 	return &CertBlock{latestSignedMTR, latestSignedMTRHash, prevSignedMTRHash, latestMTR, publicKey}
 }
 
