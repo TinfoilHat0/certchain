@@ -56,13 +56,13 @@ type AddNewTxnResponse struct {
 	SkipBlock *skipchain.SkipBlock
 }
 
-// PropagateTxnInfo is a wrapper to propagte txn info across nodes
+// PropagateTxnInfo is a wrapper to propagate a txn info across nodes
 type PropagateTxnInfo struct {
 	BlockMTR  []byte
 	BlockHash skipchain.SkipBlockID
 }
 
-//CertBlock stores a transaction of the Certchain (this is stored in data field of a Skipblock)
+// CertBlock stores a transaction of the Certchain (this is stored in data field of a Skipblock)
 type CertBlock struct {
 	LatestSignedMTR []byte
 	LatestMTR       []byte

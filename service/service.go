@@ -55,10 +55,10 @@ func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.Cli
 	return &AddNewTxnResponse{sb.Latest}, nil
 }
 
-// VerifyTxn verifies a Certchain txn as follows:
+// VerifyTxn verifies a txn as follows:
 // 1. Get the public key from the previous block
-// 2. Verify the signature on the blocks latestMTR, if previousMTR is all 0 (this is the genesis certblock) this is the only verification
-// 3. Check whether the block is in unspentTxn map. If it is, remove block from the map and return true. Otherwise, return false
+// 2. Verify the signature on the blocks latestMTRW
+// 3. Check whether the block is in unspentTxnMap. If it is, remove block from the map and return true. Otherwise, return false
 func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
 	client := skipchain.NewClient()
 	previousSB, cerr := client.GetSingleBlock(newSB.Roster, newSB.BackLinkIDs[0])
@@ -116,6 +116,7 @@ func (s *Service) propagateTxnMap(msg network.Message) {
 // configuration, if desired. As we don't know when the service will exit,
 // we need to save the configuration on our own from time to time.
 func newService(c *onet.Context) onet.Service {
+	//TODO: Register verification functions of skipchain
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
 		unspentTxnMap:    make(map[string]skipchain.SkipBlockID),

@@ -48,7 +48,7 @@ func TestCreateSkipChain(t *testing.T) {
 
 }
 
-// Add a new txn to the SkipChain
+// Add a new txn to the SkipChain by running the verification function
 func TestAddNewTxn(t *testing.T) {
 	client := NewClient()
 	local := onet.NewTCPTest()
@@ -61,6 +61,34 @@ func TestAddNewTxn(t *testing.T) {
 	assert.NotNil(t, sb)
 
 	cb = client.CreateCertBlock(client.GenerateCertificates(5), cb.LatestMTR, client.keyPair)
+	assert.NotNil(t, cb)
+	sb, err = client.AddNewTxn(roster, sb, cb)
+	log.ErrFatal(err, "Couldn't send")
+	assert.NotNil(t, sb)
+
+	_, sbRawData, merr := network.Unmarshal(sb.Data)
+	log.ErrFatal(merr)
+	assert.NotNil(t, sbRawData)
+	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
+	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
+	assert.Equal(t, cb.PrevMTR, sbRawData.(*CertBlock).PrevMTR)
+	assert.True(t, cb.PublicKey.Equal(sbRawData.(*CertBlock).PublicKey))
+
+}
+
+// Add a new txn to the SkipChain by running the verification function using the CONIKS' Merkle Tree Algorithm
+func TestAddNewTxnCONIKS(t *testing.T) {
+	client := NewClient()
+	local := onet.NewTCPTest()
+	_, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	cb := client.CreateCertBlockCONIKS(client.GenerateCertificates(5), make([]byte, hashSize), client.keyPair)
+	sb, err := client.CreateSkipchain(roster, cb)
+	log.ErrFatal(err, "Couldn't send")
+	assert.NotNil(t, sb)
+
+	cb = client.CreateCertBlockCONIKS(client.GenerateCertificates(5), cb.LatestMTR, client.keyPair)
 	assert.NotNil(t, cb)
 	sb, err = client.AddNewTxn(roster, sb, cb)
 	log.ErrFatal(err, "Couldn't send")

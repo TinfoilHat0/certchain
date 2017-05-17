@@ -9,10 +9,14 @@ This part of the service runs on the client or the app.
 */
 
 import (
+	"bytes"
 	"crypto/sha256"
 
-	"github.com/TinfoilHat0/certchain/merkletree"
+	"github.com/TinfoilHat0/certchain/merkle_tree"
+	"github.com/coniks-sys/coniks-go/crypto/vrf"
+	"github.com/coniks-sys/coniks-go/merkletree"
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet/log"
 	"gopkg.in/dedis/crypto.v0/config"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/sign"
@@ -30,13 +34,20 @@ var hashSize = sha256.New().Size()
 // service
 type Client struct {
 	*onet.Client
-	keyPair *config.KeyPair
+	keyPair     *config.KeyPair
+	coniksKey   string
+	coniksIndex []byte
 }
 
 // NewClient instantiates a new cosi.Client
 func NewClient() *Client {
 	kp := config.NewKeyPair(suite)
-	return &Client{onet.NewClient(Name), kp} //by reference or by value?
+	coniksKey := "my_id@epfl.ch"
+	vrfPrivKey, err := vrf.GenerateKey(bytes.NewReader(
+		[]byte("deterministic tests need 32 byte")))
+	log.ErrFatal(err)
+	coniksIndex := vrfPrivKey.Compute([]byte(coniksKey))
+	return &Client{onet.NewClient(Name), kp, coniksKey, coniksIndex}
 }
 
 // GenerateNewKeyPair generetes a new keypair for the client
@@ -61,6 +72,40 @@ func (c *Client) CreateCertBlock(certifs []crypto.HashID, prevMTR []byte, keyPai
 	leaves[0] = prevMTR
 	leaves[1] = certMTR
 	latestMTR, _ := crypto.ProofTree(sha256.New, leaves)
+	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, latestMTR)
+	if err != nil {
+		return nil
+	}
+	return &CertBlock{latestSignedMTR, latestMTR, prevMTR, keyPair.Public}
+}
+
+// CreateCertBlockCONIKS builds a new CertBlock from the supplied certificates using CONIKs Merkle Tree algorithm
+func (c *Client) CreateCertBlockCONIKS(certifs []crypto.HashID, prevMTR []byte, keyPair *config.KeyPair) *CertBlock {
+	// create a new merkle tree
+	m, err := merkletree.NewMerkleTree()
+	if err != nil {
+		return nil
+	}
+	// put the previous root
+	if err := m.Set(c.coniksIndex, c.coniksKey, prevMTR); err != nil {
+		return nil
+	}
+	// add new certificates
+	for _, cert := range certifs {
+		if err := m.Set(c.coniksIndex, c.coniksKey, cert); err != nil {
+			return nil
+		}
+	}
+	m.RecomputeHash()
+	latestMTR := m.GetRootHash()
+	// Or use Get() and then lookupIndex of the returned value?
+	/*
+		// get the authentication path from the tree
+		ap := m.Get(c.coniksIndex)
+		if ap.Leaf.Value == nil {
+			return nil
+		}
+	*/
 	latestSignedMTR, err := sign.Schnorr(suite, keyPair.Secret, latestMTR)
 	if err != nil {
 		return nil
