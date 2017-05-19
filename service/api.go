@@ -10,14 +10,13 @@ This part of the service runs on the client or the app.
 
 import (
 	"bytes"
-	"crypto/sha256"
 
-	"github.com/TinfoilHat0/certchain/merkle_tree"
 	coniks_crypto "github.com/coniks-sys/coniks-go/crypto"
 	coniks_sign "github.com/coniks-sys/coniks-go/crypto/sign"
 	"github.com/coniks-sys/coniks-go/crypto/vrf"
 	"github.com/coniks-sys/coniks-go/merkletree"
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet/crypto"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -26,8 +25,8 @@ import (
 // Suite used in signing
 var suite = network.Suite
 
-// 32 bytes
-var hashSize = sha256.New().Size()
+// Digest size of hash functions
+var hashSize = 32
 
 // CONIKS setup
 var vrfPrivKey, _ = vrf.GenerateKey(bytes.NewReader(
@@ -37,36 +36,38 @@ var vrfPrivKey, _ = vrf.GenerateKey(bytes.NewReader(
 // service
 type Client struct {
 	*onet.Client
-	signKey coniks_sign.PrivateKey
-	pad     *merkletree.PAD
+	// merkle tree structure of coniks
+	pad *merkletree.PAD
+	// secretKey used to sign merkle tree roots, also used to derive public key
+	secretKey coniks_sign.PrivateKey
+	// number of certificates issued by this client
 	certCtr uint64
 }
 
 // NewClient instantiates a new cosi.Client
 func NewClient() *Client {
-	signKey, err := coniks_sign.GenerateKey(nil)
+	secretKey, err := coniks_sign.GenerateKey(nil)
 	if err != nil {
 		return nil
 	}
-	pad, err := merkletree.NewPAD(PadAd{"abc"}, signKey, vrfPrivKey, 10)
+	pad, err := merkletree.NewPAD(PadAd{""}, secretKey, vrfPrivKey, 10)
 	if err != nil {
 		return nil
 	}
-	return &Client{onet.NewClient(Name), signKey, pad, 0}
+	return &Client{onet.NewClient(Name), pad, secretKey, 0}
 }
 
-// GenerateNewKey generetes a new secret key for the client
-func (c *Client) GenerateNewKey() {
-	signKey, err := coniks_sign.GenerateKey(nil)
+// GenerateNewSecretKey generetes a new secret key for the client
+func (c *Client) GenerateNewSecretKey() {
+	secretKey, err := coniks_sign.GenerateKey(nil)
 	if err != nil {
 		return
 	}
-	c.signKey = signKey
+	c.secretKey = secretKey
 }
 
 // GenerateCertificates generates n random certificates and returns them in a slice of slice of bytes format
 func (c *Client) GenerateCertificates(n int) []crypto.HashID {
-	// Change this to one certificate at a time ?
 	leaves := make([]crypto.HashID, n)
 	for i := range leaves {
 		leaves[i] = random.Bytes(hashSize, random.Stream)
@@ -81,14 +82,15 @@ func (c *Client) CreateCertBlock(certifs []crypto.HashID) *CertBlock {
 		if err := c.pad.Set(key, cert); err != nil {
 			return nil
 		}
-		c.pad.Update(nil)
+		c.certCtr++
 	}
+	c.pad.Update(nil)
 	str := c.pad.LatestSTR()
 	latestSignedMTR := str.Signature
 	latestSignedMTRHash := coniks_crypto.Digest(latestSignedMTR)
 	prevSignedMTRHash := str.PreviousSTRHash
 	latestMTR := str.Serialize()
-	publicKey, ok := c.signKey.Public()
+	publicKey, ok := c.secretKey.Public()
 	if !ok {
 		return nil
 	}

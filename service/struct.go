@@ -77,7 +77,7 @@ type PadAd struct {
 	data string
 }
 
-// Serialize is required to match PadAd to Associate Data Interface (coniks-pad)
+// Serialize is required to match PadAd to Associate Data interface (coniks-pad)
 func (t PadAd) Serialize() []byte {
 	return []byte(t.data)
 }

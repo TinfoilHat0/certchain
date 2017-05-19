@@ -38,7 +38,6 @@ func TestCreateSkipChain(t *testing.T) {
 	_, sbRawData, merr := network.Unmarshal(sb.Data)
 	log.ErrFatal(merr)
 	assert.NotNil(t, sbRawData)
-
 	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
 	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
 	assert.Equal(t, cb.PrevSignedMTRHash, sbRawData.(*CertBlock).PrevSignedMTRHash)
@@ -53,13 +52,12 @@ func TestAddNewTxn(t *testing.T) {
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
 
-	cb := client.CreateCertBlock(client.GenerateCertificates(1))
+	cb := client.CreateCertBlock(client.GenerateCertificates(5))
 	sb, err := client.CreateSkipchain(roster, cb)
 	log.ErrFatal(err, "Couldn't send")
 	assert.NotNil(t, sb)
 
-	// Adding more than one certificate at a time causes error
-	cb = client.CreateCertBlock(client.GenerateCertificates(1))
+	cb = client.CreateCertBlock(client.GenerateCertificates(5))
 	assert.NotNil(t, cb)
 	sb, err = client.AddNewTxn(roster, sb, cb)
 	log.ErrFatal(err, "Couldn't send")
@@ -67,9 +65,7 @@ func TestAddNewTxn(t *testing.T) {
 
 	_, sbRawData, merr := network.Unmarshal(sb.Data)
 	log.ErrFatal(merr)
-
 	assert.NotNil(t, sbRawData)
-
 	assert.Equal(t, cb.LatestMTR, sbRawData.(*CertBlock).LatestMTR)
 	assert.Equal(t, cb.LatestSignedMTR, sbRawData.(*CertBlock).LatestSignedMTR)
 	assert.Equal(t, cb.PrevSignedMTRHash, sbRawData.(*CertBlock).PrevSignedMTRHash)
