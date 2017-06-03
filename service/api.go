@@ -42,6 +42,8 @@ type Client struct {
 	secretKey coniks_sign.PrivateKey
 	// number of certificates issued by this client
 	certCtr uint64
+	// email of the client
+	// email string
 }
 
 // NewClient instantiates a new cosi.Client
