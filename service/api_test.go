@@ -6,16 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
+	"gopkg.in/dedis/onet.v1/network"
 )
 
 func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
-/*
 // Generate a CertBlock
 func TestGenerateCertBlock(t *testing.T) {
-	client := NewClient()
+	client := NewClient("")
 	certifs := client.GenerateCertificates(5)
 	assert.NotNil(t, certifs)
 
@@ -25,7 +25,7 @@ func TestGenerateCertBlock(t *testing.T) {
 
 // Initialize a new SkipChain and store a CertBlock in it
 func TestCreateSkipChain(t *testing.T) {
-	client := NewClient()
+	client := NewClient("")
 	local := onet.NewTCPTest()
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
@@ -47,7 +47,7 @@ func TestCreateSkipChain(t *testing.T) {
 
 // Add a new txn to the SkipChain by running the verification function using the CONIKS' Merkle Tree Algorithm
 func TestAddNewTxn(t *testing.T) {
-	client := NewClient()
+	client := NewClient("")
 	local := onet.NewTCPTest()
 	_, roster, _ := local.GenTree(3, true)
 	defer local.CloseAll()
@@ -72,7 +72,7 @@ func TestAddNewTxn(t *testing.T) {
 	assert.Equal(t, cb.PublicKey, sbRawData.(*CertBlock).PublicKey)
 
 }
-*/
+
 func TestConiksProof(t *testing.T) {
 	client := NewClient("test_email")
 	local := onet.NewTCPTest()
