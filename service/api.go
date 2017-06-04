@@ -17,6 +17,7 @@ import (
 	"github.com/coniks-sys/coniks-go/merkletree"
 	"github.com/dedis/cothority/skipchain"
 	"github.com/dedis/onet/crypto"
+	"github.com/dedis/onet/log"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -43,11 +44,11 @@ type Client struct {
 	// number of certificates issued by this client
 	certCtr uint64
 	// email of the client
-	// email string
+	email string
 }
 
 // NewClient instantiates a new cosi.Client
-func NewClient() *Client {
+func NewClient(email string) *Client {
 	secretKey, err := coniks_sign.GenerateKey(nil)
 	if err != nil {
 		return nil
@@ -56,7 +57,7 @@ func NewClient() *Client {
 	if err != nil {
 		return nil
 	}
-	return &Client{onet.NewClient(Name), pad, secretKey, 0}
+	return &Client{onet.NewClient(Name), pad, secretKey, 0, email}
 }
 
 // GenerateNewSecretKey generetes a new secret key for the client
@@ -80,11 +81,9 @@ func (c *Client) GenerateCertificates(n int) []crypto.HashID {
 // CreateCertBlock builds a new CertBlock from the supplied certificates using CONIKs Merkle Tree algorithm
 func (c *Client) CreateCertBlock(certifs []crypto.HashID) *CertBlock {
 	for _, cert := range certifs {
-		key := string(c.certCtr)
-		if err := c.pad.Set(key, cert); err != nil {
+		if err := c.pad.Set(c.email, cert); err != nil {
 			return nil
 		}
-		c.certCtr++
 	}
 	c.pad.Update(nil)
 	str := c.pad.LatestSTR()
@@ -96,7 +95,8 @@ func (c *Client) CreateCertBlock(certifs []crypto.HashID) *CertBlock {
 	if !ok {
 		return nil
 	}
-	return &CertBlock{latestSignedMTR, latestSignedMTRHash, prevSignedMTRHash, latestMTR, publicKey}
+	ap, _ := c.pad.Lookup(c.email)
+	return &CertBlock{latestSignedMTR, latestSignedMTRHash, prevSignedMTRHash, latestMTR, publicKey, ap}
 }
 
 // CreateSkipchain initializes the Skipchain which is the underlying blockchain service
@@ -119,4 +119,41 @@ func (c *Client) AddNewTxn(r *onet.Roster, sb *skipchain.SkipBlock, cb *CertBloc
 		return nil, err
 	}
 	return reply.SkipBlock, nil
+}
+
+// GetConiksAuth returns an inclusion proof from the pad of a client given an email
+func GetConiksAuth(email string, pad *merkletree.PAD) (*merkletree.AuthenticationPath, error) {
+	ap, err := pad.Lookup(email)
+	if ap.Leaf.Value == nil {
+		log.Error("Cannot find key:", email)
+		return nil, err
+	}
+	if !bytes.Equal(ap.Leaf.Index, ap.LookupIndex) {
+		log.Error("Leaf index and LookupIndex values don't match!")
+		return nil, err
+	}
+	return ap, nil
+}
+
+// VerifyConiksAuth returns the latest SkipBlock associated with the given AuthenticationPath as a proof of inclusion
+func VerifyConiksAuth(ap *merkletree.AuthenticationPath, latestSB *skipchain.SkipBlock) *skipchain.SkipBlock {
+	_, cb, err := network.Unmarshal(latestSB.Data)
+	log.ErrFatal(err)
+	if bytes.Equal(ap.VrfProof, cb.(*CertBlock).ConiksAuthPath.VrfProof) {
+		return latestSB
+	}
+	client, ctr := skipchain.NewClient(), 0
+	for {
+		prevSB, cerr := client.GetSingleBlock(latestSB.Roster, latestSB.BackLinkIDs[ctr])
+		if cerr != nil {
+			return nil
+		}
+		_, cb, err := network.Unmarshal(prevSB.Data)
+		log.ErrFatal(err)
+		if bytes.Equal(ap.VrfProof, cb.(*CertBlock).ConiksAuthPath.VrfProof) {
+			return latestSB
+		}
+		ctr++
+	}
+
 }

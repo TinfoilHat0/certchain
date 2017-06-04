@@ -6,6 +6,7 @@ This holds the messages used to communicate with the service over the network.
 
 import (
 	coniks_sign "github.com/coniks-sys/coniks-go/crypto/sign"
+	"github.com/coniks-sys/coniks-go/merkletree"
 	"github.com/dedis/cothority/skipchain"
 	"github.com/satori/go.uuid"
 	"gopkg.in/dedis/onet.v1"
@@ -70,6 +71,7 @@ type CertBlock struct {
 	PrevSignedMTRHash   []byte
 	LatestMTR           []byte
 	PublicKey           coniks_sign.PublicKey
+	ConiksAuthPath      *merkletree.AuthenticationPath
 }
 
 // PadAd stores associate data of PAD
