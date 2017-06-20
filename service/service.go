@@ -57,21 +57,7 @@ func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.Cli
 // 2. Verify the signature on the blocks latestMTRW
 // 3. Check whether the block is in unspentTxnMap. If it is, remove block from the map and return true. Otherwise, return false
 func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
-	/*
-		client := skipchain.NewClient()
-
-				previousSB, cerr := client.GetSingleBlock(newSB.Roster, newSB.BackLinkIDs[0])
-				if cerr != nil {
-					return false
-				}
-
-
-			_, cbPrev, err := network.Unmarshal(previousSB.Data)
-			log.ErrFatal(err)
-			publicKey := cbPrev.(*CertBlock).PublicKey
-	*/
 	//  Get the public key from the block and verify the signature
-
 	_, cb, _ := network.Unmarshal(newSB.Data)
 	publicKey := cb.(*CertBlock).PublicKey
 	if !publicKey.Verify(cb.(*CertBlock).LatestMTR, cb.(*CertBlock).LatestSignedMTR) {
