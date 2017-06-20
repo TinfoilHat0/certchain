@@ -96,4 +96,6 @@ func TestConiksProof(t *testing.T) {
 	assert.NotNil(t, proofSB)
 	assert.Equal(t, sb, proofSB)
 
+	// _, cerr = GetConiksAuth("false_email", client.pad)
+
 }

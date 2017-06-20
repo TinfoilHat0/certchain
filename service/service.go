@@ -53,21 +53,27 @@ func (s *Service) AddNewTxn(txn *AddNewTxnRequest) (*AddNewTxnResponse, onet.Cli
 }
 
 // VerifyTxn verifies a txn as follows:
-// 1. Get the public key from the previous block
+// 1. Get the public key from block
 // 2. Verify the signature on the blocks latestMTRW
 // 3. Check whether the block is in unspentTxnMap. If it is, remove block from the map and return true. Otherwise, return false
 func (s *Service) VerifyTxn(newID []byte, newSB *skipchain.SkipBlock) bool {
-	client := skipchain.NewClient()
-	previousSB, cerr := client.GetSingleBlock(newSB.Roster, newSB.BackLinkIDs[0])
-	if cerr != nil {
-		return false
-	}
-	// Get the public key from the previous block as verification has to be done using that key
-	_, cbPrev, err := network.Unmarshal(previousSB.Data)
-	log.ErrFatal(err)
-	publicKey := cbPrev.(*CertBlock).PublicKey
-	// Verify the signature
+	/*
+		client := skipchain.NewClient()
+
+				previousSB, cerr := client.GetSingleBlock(newSB.Roster, newSB.BackLinkIDs[0])
+				if cerr != nil {
+					return false
+				}
+
+
+			_, cbPrev, err := network.Unmarshal(previousSB.Data)
+			log.ErrFatal(err)
+			publicKey := cbPrev.(*CertBlock).PublicKey
+	*/
+	//  Get the public key from the block and verify the signature
+
 	_, cb, _ := network.Unmarshal(newSB.Data)
+	publicKey := cb.(*CertBlock).PublicKey
 	if !publicKey.Verify(cb.(*CertBlock).LatestMTR, cb.(*CertBlock).LatestSignedMTR) {
 		return false
 	}
@@ -108,7 +114,6 @@ func (s *Service) propagateTxnMap(msg network.Message) {
 // configuration, if desired. As we don't know when the service will exit,
 // we need to save the configuration on our own from time to time.
 func newService(c *onet.Context) onet.Service {
-	//TODO: Register verification functions of skipchain
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
 		unspentTxnMap:    make(map[string]skipchain.SkipBlockID),
